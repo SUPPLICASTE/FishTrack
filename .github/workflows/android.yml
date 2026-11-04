@@ -33,6 +33,14 @@ jobs:
           echo "Archivos Gradle:"
           find . -maxdepth 3 \( -name "settings.gradle" -o -name "settings.gradle.kts" -o -name "build.gradle" -o -name "build.gradle.kts" \)
 
+      - name: Comprobar AndroidManifest
+        run: |
+          echo "=== CONTENIDO DEL MANIFEST ==="
+          cat -n app/src/main/AndroidManifest.xml
+
+          echo "=== VALIDAR XML ==="
+          python3 -c "import xml.etree.ElementTree as ET; ET.parse('app/src/main/AndroidManifest.xml'); print('XML CORRECTO')"
+
       - name: Compilar APK
         run: gradle :app:assembleDebug
 
