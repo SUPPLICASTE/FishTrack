@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
@@ -15,6 +16,10 @@ import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.widget.Toast
 import java.io.OutputStreamWriter
+import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
+org.json.JSONObject
 
 class MainActivity : Activity() {
     private lateinit var web: WebView
@@ -24,6 +29,7 @@ class MainActivity : Activity() {
     private val pickImage = 101
     private val requestLocation = 102
     private val saveBackupRequest = 103
+    private val pickLicenseRequest = 104
     private var pendingBackupText: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,6 +110,41 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun chooseLicense() {
+            runOnUiThread {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "application/pdf"
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivityForResult(intent, pickLicenseRequest)
+            }
+        }
+
+        @JavascriptInterface
+        fun openLicense(id: String) {
+            runOnUiThread {
+                if (id.matches(Regex("[A-Za-z0-9-]{1,50}"))) {
+                    val file = File(File(filesDir, "licenses"), "$id.pdf")
+                    if (file.exists()) {
+                        startActivity(Intent(this@MainActivity, PdfViewerActivity::class.java).putExtra("license_file", id))
+                    } else {
+                        Toast.makeText(this@MainActivity, "No se encuentra el PDF", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun deleteLicense(id: String) {
+            runOnUiThread {
+                if (id.matches(Regex("[A-Za-z0-9-]{1,50}"))) {
+                    File(File(filesDir, "licenses"), "$id.pdf").delete()
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun toast(message: String) {
             runOnUiThread { Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show() }
         }
@@ -112,7 +153,32 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated Android callback retained for broad device compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == pickImage) {
+        if (requestCode == pickLicenseRequest) {
+            val uri = if (resultCode == RESULT_OK) data?.data else null
+            if (uri != null) {
+                try {
+                    val directory = File(filesDir, "licenses")
+                    if (!directory.exists() && !directory.mkdirs()) throw IllegalStateException("No se pudo crear carpeta")
+                    var displayName = "licencia.pdf"
+                    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) displayName = cursor.getString(0) ?: displayName
+                    }
+                    if (!displayName.lowercase().endsWith(".pdf")) displayName += ".pdf"
+                    val id = UUID.randomUUID().toString()
+                    val destination = File(directory, "$id.pdf")
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(destination).use { output -> input.copyTo(output) }
+                    } ?: throw IllegalStateException("No se pudo leer el PDF")
+                    web.evaluateJavascript(
+                        "window.onLicensePicked && window.onLicensePicked(${JSONObject.quote(id)}, ${JSONObject.quote(displayName)})",
+                        null
+                    )
+                    Toast.makeText(this, "Licencia guardada", Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) {
+                    Toast.makeText(this, "No se pudo guardar el PDF", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else if (requestCode == pickImage) {
             val result = if (resultCode == RESULT_OK && data?.data != null) arrayOf(data.data!!) else null
             uploadCallback?.onReceiveValue(result)
             uploadCallback = null
