@@ -1,0 +1,1 @@
+No se incluye todavía ningún modelo de clasificación de peces. Consulta `docs/AI-ROADMAP.md` antes de añadir pesos: verifica licencia, taxonomía, compatibilidad Android y evaluación con especies de España. No coloques aquí pesos descargados sin revisar sus condiciones.
