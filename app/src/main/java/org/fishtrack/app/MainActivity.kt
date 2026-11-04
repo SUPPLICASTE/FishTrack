@@ -2,6 +2,10 @@ package org.fishtrack.app
 
 import android.Manifest
 import android.app.Activity
+import android.graphics.Bitmap
+import android.provider.MediaStore
+import android.util.Base64
+import java.io.ByteArrayOutputStream
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -30,6 +34,8 @@ class MainActivity : Activity() {
     private val requestLocation = 102
     private val saveBackupRequest = 103
     private val pickLicenseRequest = 104
+    private val capturePhotoRequest = 105
+    private var pendingCameraTarget: String? = null
     private var pendingBackupText: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,6 +116,26 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun capturePhoto(target: String) {
+            runOnUiThread {
+                if (target != "gear" && target != "catch") return@runOnUiThread
+                try {
+                    pendingCameraTarget = target
+                    val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                    if (intent.resolveActivity(packageManager) != null) {
+                        startActivityForResult(intent, capturePhotoRequest)
+                    } else {
+                        pendingCameraTarget = null
+                        Toast.makeText(this@MainActivity, "No se encuentra una aplicación de cámara", Toast.LENGTH_LONG).show()
+                    }
+                } catch (_: Exception) {
+                    pendingCameraTarget = null
+                    Toast.makeText(this@MainActivity, "No se pudo abrir la cámara", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun chooseLicense() {
             runOnUiThread {
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -153,7 +179,22 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated Android callback retained for broad device compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == pickLicenseRequest) {
+        if (requestCode == capturePhotoRequest) {
+            val target = pendingCameraTarget
+            pendingCameraTarget = null
+            val bitmap = if (resultCode == RESULT_OK) data?.extras?.get("data") as? Bitmap else null
+            if (target != null && bitmap != null) {
+                try {
+                    val output = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 78, output)
+                    val encoded = Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+                    val dataUrl = "data:image/jpeg;base64,$encoded"
+                    web.evaluateJavascript("window.onCameraPhoto && window.onCameraPhoto(${JSONObject.quote(target)}, ${JSONObject.quote(dataUrl)})", null)
+                } catch (_: Exception) {
+                    Toast.makeText(this, "No se pudo procesar la foto", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else if (requestCode == pickLicenseRequest) {
             val uri = if (resultCode == RESULT_OK) data?.data else null
             if (uri != null) {
                 try {
