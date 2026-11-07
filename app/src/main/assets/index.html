@@ -28,6 +28,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <body>
 <header><div class="top"><div><div class="brand">🐟 FishTrack</div><div class="sub" data-i="tagline">Tu diario de pesca, sin cuentas</div></div><button class="lang" id="lang">EN</button></div></header>
 <main>
+<input id="sharedPhotoPicker" type="file" accept="image/*" hidden onchange="handleGalleryPhoto(event)">
 <div class="tabs">
 <button class="tab active" data-tab="home" data-i="navHome">Inicio</button>
 <button class="tab" data-tab="catches" data-i="navFish">Capturas</button>
@@ -57,7 +58,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 </section>
 <section class="panel" id="stats">
 <div class="card"><h3>Actividad de pesca</h3><p class="muted">También cuenta los días y lugares en los que has pescado aunque no hayas tenido capturas.</p><div class="row"><input id="sessionPlace" placeholder="Lugar de la jornada"><input id="sessionDate" type="date"></div><button class="primary" onclick="saveFishingSession()">Registrar jornada sin captura</button><div id="sessionStats"></div></div>
-<div class="card"><h2 data-i="statsTitle">Dónde pescas más</h2><p class="muted" data-i="statsDesc">Distribución de tus capturas registradas.</p><div id="chart"></div></div>
+<div class="card"><h2 data-i="statsTitle">Dónde pescas más</h2><p class="muted" data-i="statsDesc">Distribución de tus capturas registradas.</p><div id="chart"></div><h3 style="margin-top:18px">Dónde más pesco (capturas + jornadas + puntos guardados)</h3><div id="placeChart"></div></div>
 <div class="card"><h3 data-i="speciesStats">Especies registradas</h3><div id="speciesChart"></div></div>
 <div class="card"><h3 data-i="backupTitle">Copia de seguridad</h3><button class="secondary" onclick="exportData()" data-i="export">Exportar copia de seguridad (JSON)</button><label data-i="importLabel">Restaurar copia JSON</label><input id="backupFile" type="file" accept="application/json,.json"><button class="primary" onclick="importData()" data-i="importButton">Importar copia</button><p class="muted" data-i="importWarning">Importar sustituye los datos actuales. Exporta antes una copia si quieres conservarlos.</p></div>
 </section>
@@ -125,8 +126,29 @@ function t(k){return dict[lang][k]||k}
 function translate(){document.documentElement.lang=lang;document.querySelectorAll("[data-i]").forEach(e=>e.textContent=t(e.dataset.i));document.getElementById("lang").textContent=lang==="es"?"EN":"ES";render()}
 document.getElementById("lang").onclick=()=>{lang=lang==="es"?"en":"es";localStorage.lang=lang;translate()};
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-function showTab(id){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===id));document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.id===id));}
-function persist(){localStorage.catches=JSON.stringify(catches);localStorage.gear=JSON.stringify(gear);localStorage.spots=JSON.stringify(spots);localStorage.licenses=JSON.stringify(licenses);localStorage.sessions=JSON.stringify(sessions);render()}function takePhoto(target){if(window.FishTrackNative&&FishTrackNative.capturePhoto)FishTrackNative.capturePhoto(target);else alert(lang==="es"?"La cámara está disponible en la aplicación Android.":"The camera is available in the Android app.");}window.onCameraPhoto=function(target,data){if(target==="gear"){pendingGearPhoto=data;const img=document.getElementById("gearPhotoPreview");img.src=data;img.style.display="block"}else{pendingCatchPhoto=data;const img=document.getElementById("catchPhotoPreview");img.src=data;img.style.display="block"}};
+function showTab(id){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===id));document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.id===id));window.scrollTo({top:0,behavior:"smooth"});}
+function persist(){localStorage.catches=JSON.stringify(catches);localStorage.gear=JSON.stringify(gear);localStorage.spots=JSON.stringify(spots);localStorage.licenses=JSON.stringify(licenses);localStorage.sessions=JSON.stringify(sessions);render()}function takePhoto(target){
+ const useCamera=confirm(lang==="es"?"Pulsa Aceptar para hacer una foto con la cámara. Pulsa Cancelar para elegir una imagen de la galería.":"Press OK to take a photo with the camera. Press Cancel to choose an image from your gallery.");
+ if(useCamera){
+  if(window.FishTrackNative&&FishTrackNative.capturePhoto)FishTrackNative.capturePhoto(target);
+  else alert(lang==="es"?"La cámara está disponible en la aplicación Android.":"The camera is available in the Android app.");
+ }else{
+  window.photoPickerTarget=target;
+  const picker=document.getElementById("sharedPhotoPicker");
+  if(picker){picker.value="";picker.click();}
+ }
+}
+window.onCameraPhoto=function(target,data){setPhotoForTarget(target,data)};
+function setPhotoForTarget(target,data){
+ if(target==="gear"){pendingGearPhoto=data;const img=document.getElementById("gearPhotoPreview");if(img){img.src=data;img.style.display="block"}}
+ else if(target==="catch"){pendingCatchPhoto=data;const img=document.getElementById("catchPhotoPreview");if(img){img.src=data;img.style.display="block"}}
+}
+function handleGalleryPhoto(event){
+ const file=event.target.files&&event.target.files[0];if(!file)return;
+ if(!file.type.startsWith("image/")){alert(lang==="es"?"Elige una imagen.":"Choose an image.");return;}
+ const target=window.photoPickerTarget||"catch";
+ compressPhoto(file,data=>setPhotoForTarget(target,data));
+}
 function saveCatch(){let s=document.getElementById("species").value.trim();if(!s){alert(t("needSpecies"));return}let item={id:Date.now(),species:s,weight:document.getElementById("weight").value,length:document.getElementById("length").value,water:document.getElementById("water").value,place:document.getElementById("place").value,date:document.getElementById("date").value||new Date().toISOString().slice(0,10),notes:document.getElementById("notes").value,photo:pendingCatchPhoto||""};catches.unshift(item);pendingCatchPhoto="";document.getElementById("catchPhotoPreview").src="";document.getElementById("catchPhotoPreview").style.display="none";["species","weight","length","place","notes"].forEach(id=>document.getElementById(id).value="");persist();alert(t("saved"))}
 
 function compressPhoto(file,done){
@@ -150,7 +172,20 @@ function compressPhoto(file,done){
 function del(arr,id){return arr.filter(x=>x.id!==id)}
 function catchHTML(c){return `<div class="item">${c.photo?`<img class="thumb" src="${c.photo}">`:`<div class="thumb" style="display:grid;place-items:center">🐟</div>`}<div class="grow"><b>${esc(c.species)}</b><small>${esc(c.date)} · ${t(c.water)} · ${esc(c.place||t("unknown"))}</small><small>${c.weight?esc(c.weight)+" kg · ":""}${c.length?esc(c.length)+" cm":""}</small></div><button class="secondary" onclick="shareCatch(${c.id})">${t("share")}</button><button class="danger" onclick="deleteCatch(${c.id})">×</button></div>`}
 function renderBase(){document.getElementById("totalFish").textContent=catches.length;document.getElementById("totalGear").textContent=gear.length;document.getElementById("catchList").innerHTML=catches.length?catches.map(catchHTML).join(""):`<div class="empty">${t("empty")}</div>`;document.getElementById("recentList").innerHTML=catches.length?catches.slice(0,3).map(catchHTML).join(""):t("noCatch");document.getElementById("gearList").innerHTML=gear.length?gear.map(g=>"<div class=\"item\">"+(g.photo?"<img class=\"thumb\" src=\""+g.photo+"\" alt=\"\">":"<div class=\"thumb\">🎣</div>")+"<div class=\"grow\"><b>"+esc(g.name)+"</b><small>"+esc(g.type)+" · "+esc(g.brand||"")+" "+esc(g.model||"")+" · "+esc(g.notes||"")+"</small></div><button class=\"danger\" onclick=\"gear=del(gear,"+g.id+");persist()\">×</button></div>").join(""):`<div class="empty">${t("empty")}</div>`;renderSpots();renderLicenses();renderCharts()}
-function renderCharts(){let keys=["sea","river","reservoir"],labels={sea:t("sea"),river:t("river"),reservoir:t("reservoir")},max=Math.max(1,...keys.map(k=>catches.filter(c=>c.water===k).length));document.getElementById("chart").innerHTML=keys.map(k=>{let n=catches.filter(c=>c.water===k).length;return `<div><b>${labels[k]} · ${n}</b><div class="flowbar"><span style="width:${n/max*100}%"></span></div></div>`}).join("");let counts={};catches.forEach(c=>counts[c.species]=(counts[c.species]||0)+1);let entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);document.getElementById("speciesChart").innerHTML=entries.length?entries.map(([s,n])=>`<div class="item"><div class="grow"><b>${esc(s)}</b><small>${n}</small></div></div>`).join(""):`<div class="empty">${t("empty")}</div>`}
+function renderCharts(){
+ const keys=["sea","river","reservoir"],labels={sea:t("sea"),river:t("river"),reservoir:t("reservoir")};
+ const max=Math.max(1,...keys.map(k=>catches.filter(c=>c.water===k).length));
+ document.getElementById("chart").innerHTML=keys.map(k=>{const n=catches.filter(c=>c.water===k).length;return '<div><b>'+labels[k]+' · '+n+'</b><div class="flowbar"><span style="width:'+(n/max*100)+'%"></span></div></div>'}).join("");
+ const counts={};catches.forEach(c=>{const place=(c.place||"").trim();if(place)counts[place]=(counts[place]||0)+1});
+ (typeof sessions!=="undefined"?sessions:[]).forEach(x=>{const place=(x.place||"").trim();if(place)counts[place]=(counts[place]||0)+1});
+ spots.forEach(x=>{const place=(x.name||"").trim();if(place&&!counts[place])counts[place]=1});
+ const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+ const placeChart=document.getElementById("placeChart");
+ if(placeChart)placeChart.innerHTML=entries.length?entries.map(([name,n])=>'<div><b>'+esc(name)+' · '+n+'</b><div class="flowbar"><span style="width:'+(n/Math.max(1,...entries.map(x=>x[1]))*100)+'%"></span></div></div>').join(""):'<div class="empty">'+(lang==="es"?"Aún no hay lugares registrados.":"No places recorded yet.")+'</div>';
+ const species={};catches.forEach(c=>species[c.species]=(species[c.species]||0)+1);
+ const speciesEntries=Object.entries(species).sort((a,b)=>b[1]-a[1]);
+ document.getElementById("speciesChart").innerHTML=speciesEntries.length?speciesEntries.map(([name,n])=>'<div class="item"><div class="grow"><b>'+esc(name)+'</b><small>'+n+'</small></div></div>').join(""):'<div class="empty">'+t("empty")+'</div>';
+}
 function addGear(){let n=document.getElementById("gearName").value.trim();if(!n)return;gear.unshift({id:Date.now(),name:n,type:document.getElementById("gearType").value,brand:document.getElementById("gearBrand").value.trim(),model:document.getElementById("gearModel").value.trim(),notes:document.getElementById("gearNotes").value,photo:pendingGearPhoto});pendingGearPhoto="";document.getElementById("gearPhotoPreview").src="";document.getElementById("gearPhotoPreview").style.display="none";["gearName","gearBrand","gearModel","gearNotes"].forEach(id=>document.getElementById(id).value="");persist()}
 function deleteCatch(id){catches=del(catches,id);persist()}
 function shareCatch(id){let c=catches.find(x=>x.id===id);let msg=`${t("shareText")}: ${c.species}, ${c.date}, ${c.place||""}`;if(window.FishTrackNative&&FishTrackNative.shareText)FishTrackNative.shareText("FishTrack",msg);else if(navigator.share)navigator.share({title:"FishTrack",text:msg});else if(navigator.clipboard)navigator.clipboard.writeText(msg).then(()=>alert("OK"))}
@@ -233,8 +268,8 @@ function renderLicenses(){
 }
 
 function renderSpots(){
- const el=document.getElementById("spotList"); if(!el)return;
- el.innerHTML=spots.length?spots.map(s=>`<div class="item"><div class="grow"><b>${esc(s.name)}</b><small>${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</small></div><button class="secondary" onclick="document.getElementById('mapLat').value=${s.lat};document.getElementById('mapLon').value=${s.lon};showMap()">${lang==="es"?"Ver":"View"}</button><button class="danger" onclick="spots=del(spots,${s.id});persist()">×</button></div>`).join(""):`<div class="empty">${t("empty")}</div>`;
+ const el=document.getElementById("spotList");if(!el)return;
+ el.innerHTML=spots.length?spots.map((spot,index)=>'<div class="item" style="align-items:flex-start"><iframe title="Mapa de '+esc(spot.name)+'" src="https://www.openstreetmap.org/export/embed.html?bbox='+(spot.lon-0.012)+'%2C'+(spot.lat-0.008)+'%2C'+(spot.lon+0.012)+'%2C'+(spot.lat+0.008)+'&layer=mapnik&marker='+spot.lat+'%2C'+spot.lon+'" style="width:92px;height:76px;border:0;border-radius:9px;flex-shrink:0" loading="lazy"></iframe><div class="grow"><b>'+esc(spot.name)+'</b><small>'+Number(spot.lat).toFixed(5)+', '+Number(spot.lon).toFixed(5)+'</small></div><button class="secondary" onclick="document.getElementById(\'mapLat\').value='+spot.lat+';document.getElementById(\'mapLon\').value='+spot.lon+';document.getElementById(\'spotName\').value='+JSON.stringify(spot.name)+';showTab(\'map\');showMap()">'+(lang==="es"?"Ver":"View")+'</button><button class="danger" onclick="spots=del(spots,'+spot.id+');persist()">×</button></div>').join(""):'<div class="empty">'+t("empty")+'</div>';
 }
 const regionalSources={
  madrid:"https://www.comunidad.madrid/servicios/urbanismo-medio-ambiente/pesca",
