@@ -56,12 +56,13 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <div class="card"><h2 data-i="catchHistory">Historial</h2><div id="catchList" class="empty">—</div></div>
 </section>
 <section class="panel" id="stats">
+<div class="card"><h3>Actividad de pesca</h3><p class="muted">También cuenta los días y lugares en los que has pescado aunque no hayas tenido capturas.</p><div class="row"><input id="sessionPlace" placeholder="Lugar de la jornada"><input id="sessionDate" type="date"></div><button class="primary" onclick="saveFishingSession()">Registrar jornada sin captura</button><div id="sessionStats"></div></div>
 <div class="card"><h2 data-i="statsTitle">Dónde pescas más</h2><p class="muted" data-i="statsDesc">Distribución de tus capturas registradas.</p><div id="chart"></div></div>
 <div class="card"><h3 data-i="speciesStats">Especies registradas</h3><div id="speciesChart"></div></div>
 <div class="card"><h3 data-i="backupTitle">Copia de seguridad</h3><button class="secondary" onclick="exportData()" data-i="export">Exportar copia de seguridad (JSON)</button><label data-i="importLabel">Restaurar copia JSON</label><input id="backupFile" type="file" accept="application/json,.json"><button class="primary" onclick="importData()" data-i="importButton">Importar copia</button><p class="muted" data-i="importWarning">Importar sustituye los datos actuales. Exporta antes una copia si quieres conservarlos.</p></div>
 </section>
 <section class="panel" id="gear">
-<div class="card"><h2 data-i="gearTitle">Mi material</h2><label data-i="gearName">Nombre del material</label><input id="gearName" placeholder="Caña, carrete, señuelo..."><div class="row"><div><label data-i="gearType">Categoría</label><select id="gearType"><option>Caña</option><option>Carrete</option><option>Señuelo</option><option>Hilo</option><option>Anzuelo</option><option>Accesorio</option></select></div><div><label data-i="gearNotes">Notas</label><input id="gearNotes"></div></div><div class="row"><div><label data-i="gearBrand">Marca</label><input id="gearBrand" placeholder="Ej. Shimano"></div><div><label data-i="gearModel">Modelo</label><input id="gearModel" placeholder="Ej. Stradic FM"></div></div><label data-i="gearPhoto">Foto del material</label><button type="button" class="secondary" onclick="takePhoto(&quot;gear&quot;)" data-i="takePhoto">📷 Hacer foto</button><img id="gearPhotoPreview" class="thumb" style="display:none;margin-top:8px;width:110px;height:110px" alt="Foto del material"><button class="primary" onclick="addGear()" data-i="saveGear">Añadir material</button></div>
+<div class="card"><h2 data-i="gearTitle">Mi material</h2><label data-i="gearName">Nombre del material</label><input id="gearName" placeholder="Caña, carrete, señuelo..."><div class="row"><div><label data-i="gearType">Categoría</label><select id="gearType"><option>Caña</option><option>Carrete</option><option>Señuelo</option><option>Hilo</option><option>Anzuelo</option><option>Accesorio</option></select></div><div><label data-i="gearNotes">Notas</label><input id="gearNotes"></div></div><div class="row"><div><label data-i="gearBrand">Marca</label><input id="gearBrand" placeholder="Ej. Shimano"></div><div><label data-i="gearModel">Modelo</label><input id="gearModel" placeholder="Ej. Stradic FM"></div></div><label>Precio (€)</label><input id="gearPrice" type="number" min="0" step="0.01" placeholder="0,00"><label data-i="gearPhoto">Foto del material</label><button type="button" class="secondary" onclick="takePhoto(&quot;gear&quot;)" data-i="takePhoto">📷 Hacer foto</button><img id="gearPhotoPreview" class="thumb" style="display:none;margin-top:8px;width:110px;height:110px" alt="Foto del material"><button class="primary" onclick="addGear()" data-i="saveGear">Añadir material</button></div>
 <div class="card"><div id="gearList" class="empty">—</div></div>
 </section>
 <section class="panel" id="map">
@@ -73,7 +74,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <label data-i="spotName">Nombre del punto</label><input id="spotName" placeholder="Nombre para guardar este punto">
 <input id="mapLat" type="hidden"><input id="mapLon" type="hidden">
 <div class="row"><button onclick="getMyLocation()" data-i="myLocation">Mi ubicación GPS</button><button class="secondary" onclick="showMap()" data-i="showMap">Ver mapa</button></div><button class="primary" onclick="saveSpot()" data-i="saveSpot">Guardar punto</button>
-<div id="mapFrame" style="margin-top:12px;border-radius:13px;overflow:hidden;background:#e5eeeb;min-height:260px;display:grid;place-items:center"><span class="muted" data-i="mapPlaceholder">Busca un lugar para mostrar el mapa.</span></div>
+<div class="row"><button class="secondary" onclick="toggleMapFullscreen()">⛶ Ampliar mapa</button><button class="secondary" onclick="showMap()">Actualizar mapa</button></div><div id="mapPlaceTitle" class="notice" style="font-weight:700">Lugar seleccionado</div><div id="mapFrame" style="margin-top:12px;border-radius:13px;overflow:hidden;background:#e5eeeb;min-height:420px;display:grid;place-items:center"><span class="muted" data-i="mapPlaceholder">Busca un lugar para mostrar el mapa.</span></div>
 </div>
 <div class="card"><h3 data-i="savedSpots">Mis puntos guardados</h3><div id="spotList" class="empty">—</div></div>
 <div class="card"><p class="muted" data-i="mapDisclaimer">Mapa © OpenStreetMap contributors. La búsqueda de lugares utiliza OpenStreetMap Nominatim.</p><a href="https://www.openstreetmap.org/">OpenStreetMap</a></div>
@@ -125,7 +126,7 @@ function translate(){document.documentElement.lang=lang;document.querySelectorAl
 document.getElementById("lang").onclick=()=>{lang=lang==="es"?"en":"es";localStorage.lang=lang;translate()};
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 function showTab(id){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===id));document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.id===id));}
-function persist(){localStorage.catches=JSON.stringify(catches);localStorage.gear=JSON.stringify(gear);localStorage.spots=JSON.stringify(spots);localStorage.licenses=JSON.stringify(licenses);render()}function takePhoto(target){if(window.FishTrackNative&&FishTrackNative.capturePhoto)FishTrackNative.capturePhoto(target);else alert(lang==="es"?"La cámara está disponible en la aplicación Android.":"The camera is available in the Android app.");}window.onCameraPhoto=function(target,data){if(target==="gear"){pendingGearPhoto=data;const img=document.getElementById("gearPhotoPreview");img.src=data;img.style.display="block"}else{pendingCatchPhoto=data;const img=document.getElementById("catchPhotoPreview");img.src=data;img.style.display="block"}};
+function persist(){localStorage.catches=JSON.stringify(catches);localStorage.gear=JSON.stringify(gear);localStorage.spots=JSON.stringify(spots);localStorage.licenses=JSON.stringify(licenses);localStorage.sessions=JSON.stringify(sessions);render()}function takePhoto(target){if(window.FishTrackNative&&FishTrackNative.capturePhoto)FishTrackNative.capturePhoto(target);else alert(lang==="es"?"La cámara está disponible en la aplicación Android.":"The camera is available in the Android app.");}window.onCameraPhoto=function(target,data){if(target==="gear"){pendingGearPhoto=data;const img=document.getElementById("gearPhotoPreview");img.src=data;img.style.display="block"}else{pendingCatchPhoto=data;const img=document.getElementById("catchPhotoPreview");img.src=data;img.style.display="block"}};
 function saveCatch(){let s=document.getElementById("species").value.trim();if(!s){alert(t("needSpecies"));return}let item={id:Date.now(),species:s,weight:document.getElementById("weight").value,length:document.getElementById("length").value,water:document.getElementById("water").value,place:document.getElementById("place").value,date:document.getElementById("date").value||new Date().toISOString().slice(0,10),notes:document.getElementById("notes").value,photo:pendingCatchPhoto||""};catches.unshift(item);pendingCatchPhoto="";document.getElementById("catchPhotoPreview").src="";document.getElementById("catchPhotoPreview").style.display="none";["species","weight","length","place","notes"].forEach(id=>document.getElementById(id).value="");persist();alert(t("saved"))}
 
 function compressPhoto(file,done){
@@ -148,7 +149,7 @@ function compressPhoto(file,done){
 
 function del(arr,id){return arr.filter(x=>x.id!==id)}
 function catchHTML(c){return `<div class="item">${c.photo?`<img class="thumb" src="${c.photo}">`:`<div class="thumb" style="display:grid;place-items:center">🐟</div>`}<div class="grow"><b>${esc(c.species)}</b><small>${esc(c.date)} · ${t(c.water)} · ${esc(c.place||t("unknown"))}</small><small>${c.weight?esc(c.weight)+" kg · ":""}${c.length?esc(c.length)+" cm":""}</small></div><button class="secondary" onclick="shareCatch(${c.id})">${t("share")}</button><button class="danger" onclick="deleteCatch(${c.id})">×</button></div>`}
-function render(){document.getElementById("totalFish").textContent=catches.length;document.getElementById("totalGear").textContent=gear.length;document.getElementById("catchList").innerHTML=catches.length?catches.map(catchHTML).join(""):`<div class="empty">${t("empty")}</div>`;document.getElementById("recentList").innerHTML=catches.length?catches.slice(0,3).map(catchHTML).join(""):t("noCatch");document.getElementById("gearList").innerHTML=gear.length?gear.map(g=>"<div class=\"item\">"+(g.photo?"<img class=\"thumb\" src=\""+g.photo+"\" alt=\"\">":"<div class=\"thumb\">🎣</div>")+"<div class=\"grow\"><b>"+esc(g.name)+"</b><small>"+esc(g.type)+" · "+esc(g.brand||"")+" "+esc(g.model||"")+" · "+esc(g.notes||"")+"</small></div><button class=\"danger\" onclick=\"gear=del(gear,"+g.id+");persist()\">×</button></div>").join(""):`<div class="empty">${t("empty")}</div>`;renderSpots();renderLicenses();renderCharts()}
+function renderBase(){document.getElementById("totalFish").textContent=catches.length;document.getElementById("totalGear").textContent=gear.length;document.getElementById("catchList").innerHTML=catches.length?catches.map(catchHTML).join(""):`<div class="empty">${t("empty")}</div>`;document.getElementById("recentList").innerHTML=catches.length?catches.slice(0,3).map(catchHTML).join(""):t("noCatch");document.getElementById("gearList").innerHTML=gear.length?gear.map(g=>"<div class=\"item\">"+(g.photo?"<img class=\"thumb\" src=\""+g.photo+"\" alt=\"\">":"<div class=\"thumb\">🎣</div>")+"<div class=\"grow\"><b>"+esc(g.name)+"</b><small>"+esc(g.type)+" · "+esc(g.brand||"")+" "+esc(g.model||"")+" · "+esc(g.notes||"")+"</small></div><button class=\"danger\" onclick=\"gear=del(gear,"+g.id+");persist()\">×</button></div>").join(""):`<div class="empty">${t("empty")}</div>`;renderSpots();renderLicenses();renderCharts()}
 function renderCharts(){let keys=["sea","river","reservoir"],labels={sea:t("sea"),river:t("river"),reservoir:t("reservoir")},max=Math.max(1,...keys.map(k=>catches.filter(c=>c.water===k).length));document.getElementById("chart").innerHTML=keys.map(k=>{let n=catches.filter(c=>c.water===k).length;return `<div><b>${labels[k]} · ${n}</b><div class="flowbar"><span style="width:${n/max*100}%"></span></div></div>`}).join("");let counts={};catches.forEach(c=>counts[c.species]=(counts[c.species]||0)+1);let entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);document.getElementById("speciesChart").innerHTML=entries.length?entries.map(([s,n])=>`<div class="item"><div class="grow"><b>${esc(s)}</b><small>${n}</small></div></div>`).join(""):`<div class="empty">${t("empty")}</div>`}
 function addGear(){let n=document.getElementById("gearName").value.trim();if(!n)return;gear.unshift({id:Date.now(),name:n,type:document.getElementById("gearType").value,brand:document.getElementById("gearBrand").value.trim(),model:document.getElementById("gearModel").value.trim(),notes:document.getElementById("gearNotes").value,photo:pendingGearPhoto});pendingGearPhoto="";document.getElementById("gearPhotoPreview").src="";document.getElementById("gearPhotoPreview").style.display="none";["gearName","gearBrand","gearModel","gearNotes"].forEach(id=>document.getElementById(id).value="");persist()}
 function deleteCatch(id){catches=del(catches,id);persist()}
@@ -285,5 +286,58 @@ function exportFriends(){downloadJSON({app:"FishTrack",formatVersion:1,friends},
 function openOnlineId(){const msg=lang==="es"?"Se abrirá el identificador visual de iNaturalist. Selecciona allí la misma foto manualmente. La sugerencia puede ser incorrecta y no se importa automáticamente a FishTrack.":"iNaturalist visual identification will open. Select the same photo there manually. Suggestions may be wrong and are not imported automatically into FishTrack.";alert(msg);window.location.href="https://www.inaturalist.org/computer_vision_demo"}
 function showOfflineStatus(){document.getElementById("aiStatus").textContent=t("aiStatusDefault")+" "+t("aiOfflineLimit");}
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-document.getElementById("date").value=new Date().toISOString().slice(0,10);translate();
+
+/* FishTrack 3.2: jornadas, equipo con precio, estadísticas y mapa mejorado.
+   Conserva las claves de almacenamiento existentes y añade solo "sessions". */
+var sessions=readStore("sessions",[]);
+function saveFishingSession(){
+ const place=document.getElementById("sessionPlace").value.trim();
+ const date=document.getElementById("sessionDate").value||new Date().toISOString().slice(0,10);
+ if(!place){alert(lang==="es"?"Escribe el lugar de pesca.":"Enter the fishing place.");return;}
+ sessions.unshift({id:Date.now(),place,date,catches:0});
+ localStorage.sessions=JSON.stringify(sessions);
+ document.getElementById("sessionPlace").value="";
+ render();
+}
+function render(){
+ renderBase();
+ const list=document.getElementById("gearList");
+ if(list) list.innerHTML=gear.length?gear.map(g=>'<article class="card" style="display:flex;gap:14px;align-items:flex-start;margin:10px 0;padding:12px">'+(g.photo?'<img src="'+g.photo+'" alt="Foto de '+esc(g.name)+'" style="width:116px;height:116px;object-fit:cover;border-radius:12px">':'<div style="width:116px;height:116px;display:grid;place-items:center;background:#e5eeeb;border-radius:12px;font-size:38px">🎣</div>')+'<div class="grow"><b style="font-size:17px">'+esc(g.name)+'</b><div class="muted">'+esc(g.type||"")+' · '+esc(g.brand||"")+' '+esc(g.model||"")+'</div><div style="font-size:20px;font-weight:800;color:var(--teal);margin:7px 0">'+(g.price!==undefined&&g.price!==""?Number(g.price).toLocaleString("es-ES",{style:"currency",currency:"EUR"}):"Precio no indicado")+'</div><div class="muted">'+esc(g.notes||"")+'</div><button class="danger" style="margin-top:8px" onclick="gear=del(gear,'+g.id+');persist()">Eliminar</button></div></article>').join(""):'<div class="empty">'+t("empty")+'</div>';
+ const ss=document.getElementById("sessionStats");
+ if(ss) ss.innerHTML='<p><b>Jornadas registradas: '+sessions.length+'</b> · <b>Lugares visitados: '+new Set([...sessions.map(x=>x.place),...spots.map(x=>x.name)]).size+'</b></p>'+(sessions.length?sessions.slice(0,8).map(x=>'<div class="item"><div class="grow"><b>'+esc(x.place)+'</b><small>'+esc(x.date)+' · Jornada sin captura</small></div></div>').join(""):"");
+}
+const addGearOriginal=addGear;
+function addGear(){
+ const price=document.getElementById("gearPrice");
+ const value=price?price.value:"";
+ const name=document.getElementById("gearName").value.trim();
+ if(!name)return;
+ gear.unshift({id:Date.now(),name,type:document.getElementById("gearType").value,brand:document.getElementById("gearBrand").value.trim(),model:document.getElementById("gearModel").value.trim(),notes:document.getElementById("gearNotes").value,photo:pendingGearPhoto,price:value});
+ pendingGearPhoto="";
+ document.getElementById("gearPhotoPreview").src="";
+ document.getElementById("gearPhotoPreview").style.display="none";
+ ["gearName","gearBrand","gearModel","gearNotes","gearPrice"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
+ persist();
+}
+function renderCharts(){
+ const keys=["sea","river","reservoir"],labels={sea:t("sea"),river:t("river"),reservoir:t("reservoir")},max=Math.max(1,...keys.map(k=>catches.filter(c=>c.water===k).length));
+ document.getElementById("chart").innerHTML=keys.map(k=>{const n=catches.filter(c=>c.water===k).length;return '<div><b>'+labels[k]+' · '+n+'</b><div class="flowbar"><span style="width:'+(n/max*100)+'%"></span></div></div>'}).join("");
+ const counts={};catches.forEach(c=>counts[c.species]=(counts[c.species]||0)+1);
+ const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+ document.getElementById("speciesChart").innerHTML=entries.length?entries.map(([s,n])=>'<div class="item"><div class="grow"><b>'+esc(s)+'</b><small>'+n+'</small></div></div>').join(""):'<div class="empty">'+t("empty")+'</div>';
+}
+function showMap(){
+ const lat=parseFloat(document.getElementById("mapLat").value),lon=parseFloat(document.getElementById("mapLon").value);
+ if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){alert(lang==="es"?"Busca y selecciona un lugar o utiliza el GPS.":"Search and select a place or use GPS.");return;}
+ const d=0.025,bbox=[lon-d,lat-d,lon+d,lat+d].join("%2C");
+ const title=document.getElementById("spotName").value.trim()||"Lugar de pesca";
+ const label=document.getElementById("mapPlaceTitle");if(label)label.textContent=title;
+ document.getElementById("mapFrame").innerHTML='<iframe title="Mapa topográfico de '+esc(title)+'" width="100%" height="520" style="border:0;display:block" loading="lazy" allowfullscreen src="https://www.openstreetmap.org/export/embed.html?bbox='+bbox+'&layer=mapnik&marker='+lat+'%2C'+lon+'"></iframe><p style="padding:8px;margin:0;background:#fff;font-size:12px">Mapa © OpenStreetMap contributors. Para relieve detallado, abre <a target="_blank" rel="noopener" href="https://opentopomap.org/#map=13/'+lat+'/'+lon+'">OpenTopoMap</a>.</p>';
+}
+function toggleMapFullscreen(){
+ const frame=document.getElementById("mapFrame");
+ if(frame&&frame.requestFullscreen)frame.requestFullscreen();
+}
+
+document.getElementById("date").value=new Date().toISOString().slice(0,10);if(document.getElementById("sessionDate"))document.getElementById("sessionDate").value=new Date().toISOString().slice(0,10);translate();
 </script></body></html>
