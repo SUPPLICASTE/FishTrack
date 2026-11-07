@@ -1,52 +1,32 @@
-
 name: Build and publish FishTrack APK
-
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-      - master
-
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   build:
-    name: Build FishTrack APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Descargar codigo
-        uses: actions/checkout@v4
-
-      - name: Instalar Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Instalar Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Comprobar archivos del proyecto
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Verify project
         run: |
-          echo "Contenido de la raiz:"
-          ls -la
-          echo "Archivos Gradle:"
-          find . -maxdepth 3 \( -name "settings.gradle" -o -name "settings.gradle.kts" -o -name "build.gradle" -o -name "build.gradle.kts" \)
-
-      - name: Comprobar AndroidManifest
-        run: |
-          echo "=== CONTENIDO DEL MANIFEST ==="
-          cat -n app/src/main/AndroidManifest.xml
-
-          echo "=== VALIDAR XML ==="
-          python3 -c "import xml.etree.ElementTree as ET; ET.parse('app/src/main/AndroidManifest.xml'); print('XML CORRECTO')"
-
-      - name: Compilar APK
+          test -d app/src/main
+          test -f app/src/main/assets/index.html
+          test -f app/src/main/AndroidManifest.xml
+      - name: Build debug APK
         run: gradle :app:assembleDebug
-
-      - name: Guardar APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FishTrack-APK
+          name: FishTrack-3.2.0-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
