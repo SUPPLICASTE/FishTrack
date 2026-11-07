@@ -372,10 +372,20 @@ function saveFishingSession(){
  const place=document.getElementById("sessionPlace").value.trim();
  const date=document.getElementById("sessionDate").value||new Date().toISOString().slice(0,10);
  if(!place){alert(lang==="es"?"Escribe el lugar de pesca.":"Enter the fishing place.");return;}
- sessions.unshift({id:Date.now(),name:"Jornada",place,date,catches:0,catchIds:[],gearIds:[],gearNames:[],customGear:[],photos:[],weather:"",status:"finished"});
+ sessions.unshift({id:Date.now(),name:"Jornada",place,date,catches:0,catchIds:[],gearIds:[],gearNames:[],customGear:[],photos:[],weather:"",status:"finished",activityOnly:true});
  localStorage.sessions=JSON.stringify(sessions);
- document.getElementById("sessionPlace").value="";
- render();
+ document.getElementById("sessionPlace").value="";document.getElementById("sessionDate").value="";render();
+}
+function editFishingActivity(id){
+ const x=sessions.find(v=>v.id===Number(id));if(!x)return;
+ const place=prompt("Lugar de pesca:",x.place||"");if(place===null)return;
+ const date=prompt("Fecha (AAAA-MM-DD):",x.date||"");if(date===null)return;
+ if(!place.trim()||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date.trim())){alert("Introduce un lugar y una fecha válida (AAAA-MM-DD).");return;}
+ x.place=place.trim();x.date=date.trim();saveAll();
+}
+function deleteFishingActivity(id){
+ const x=sessions.find(v=>v.id===Number(id));if(!x||!confirm("¿Eliminar esta actividad de pesca? Esta acción no se puede deshacer."))return;
+ sessions=del(sessions,Number(id));saveAll();
 }
 
 let plans=readStore("plans",[]),gearLists=readStore("gearLists",[]);
@@ -400,7 +410,7 @@ function render(){
  const list=document.getElementById("gearList");
  if(list) list.innerHTML=gear.length?gear.map(g=>'<article class="card" style="display:flex;gap:14px;align-items:flex-start;margin:10px 0;padding:12px">'+(g.photo?'<img src="'+g.photo+'" alt="Foto de '+esc(g.name)+'" style="width:116px;height:116px;object-fit:cover;border-radius:12px">':'<div style="width:116px;height:116px;display:grid;place-items:center;background:#e5eeeb;border-radius:12px;font-size:38px">🎣</div>')+'<div class="grow"><b style="font-size:17px">'+esc(g.name)+'</b><div class="muted">'+esc(g.type||"")+' · '+esc(g.brand||"")+' '+esc(g.model||"")+'</div><div style="font-size:20px;font-weight:800;color:var(--teal);margin:7px 0">'+(g.price!==undefined&&g.price!==""?Number(g.price).toLocaleString("es-ES",{style:"currency",currency:"EUR"}):"Precio no indicado")+'</div><div class="muted">'+esc(g.notes||"")+'</div><button class="secondary" style="margin-top:8px" onclick="editGear('+g.id+')">Editar</button><button class="danger" style="margin-top:8px" onclick="gear=del(gear,'+g.id+');persist()">Eliminar</button></div></article>').join(""):'<div class="empty">'+t("empty")+'</div>';
  const ss=document.getElementById("sessionStats");
- if(ss){const linkedTotal=sessions.reduce((n,x)=>n+(x.catchIds||[]).length,0),ratings=sessions.map(x=>Number(x.rating)).filter(x=>x>0&&x<=5),avg=ratings.length?(ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1):"—",visited=new Set([...sessions.map(x=>x.place),...spots.map(x=>x.name)].filter(Boolean)).size;ss.innerHTML='<p><b>Jornadas: '+sessions.length+'</b> · <b>Capturas vinculadas: '+linkedTotal+'</b> · <b>Lugares: '+visited+'</b></p>'+(sessions.length?sessions.slice(0,12).map(x=>{const linked=(x.catchIds||[]).map(id=>catches.find(c=>c.id===id)).filter(Boolean);return '<div class="item"><div class="grow"><b>'+esc(x.name||"Jornada")+" · "+esc(x.place||"Sin lugar")+'</b><small>'+esc(x.date)+' · '+(x.status==="finished"?"Finalizada":"En curso")+" · "+linked.length+" capturas"+(x.rating?" · Nota "+esc(x.rating)+"/5":"")+'</small><small>'+(linked.length?linked.map(c=>esc(c.species)).join(", "):"Sin capturas vinculadas")+'</small></div><button class="secondary" onclick="editSession('+x.id+')">Editar actividad</button></div>'}).join(""):"");}
+ if(ss){const linkedTotal=sessions.reduce((n,x)=>n+(x.catchIds||[]).length,0),ratings=sessions.map(x=>Number(x.rating)).filter(x=>x>0&&x<=5),avg=ratings.length?(ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1):"—",visited=new Set([...sessions.map(x=>x.place),...spots.map(x=>x.name)].filter(Boolean)).size;ss.innerHTML='<p><b>Jornadas: '+sessions.length+'</b> · <b>Capturas vinculadas: '+linkedTotal+'</b> · <b>Lugares: '+visited+'</b></p>'+(sessions.length?sessions.slice(0,12).map(x=>{const linked=(x.catchIds||[]).map(id=>catches.find(c=>c.id===id)).filter(Boolean);return '<div class="item"><div class="grow"><b>'+esc(x.name||"Jornada")+" · "+esc(x.place||"Sin lugar")+'</b><small>'+esc(x.date)+' · '+(x.status==="finished"?"Finalizada":"En curso")+" · "+linked.length+" capturas"+(x.rating?" · Nota "+esc(x.rating)+"/5":"")+'</small><small>'+(linked.length?linked.map(c=>esc(c.species)).join(", "):"Sin capturas vinculadas")+'</small></div><button class="secondary" onclick="'+(x.activityOnly?"editFishingActivity":"editSession")+'('+x.id+')">Editar</button><button class="danger" onclick="'+(x.activityOnly?"deleteFishingActivity":"deleteSession")+'('+x.id+')">Eliminar</button></div>'}).join(""):"");}
 }
 const addGearOriginal=addGear;
 function addGear(){
