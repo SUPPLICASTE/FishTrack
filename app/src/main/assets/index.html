@@ -72,7 +72,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <label data-i="searchLocation">Buscar lugar o dirección</label>
 <div class="row"><input id="locationQuery" placeholder="Ej. Embalse de Santillana, Madrid"><button class="primary" onclick="searchLocation()" data-i="searchPlace">Buscar</button></div>
 <div id="locationResults"></div>
-<label data-i="spotName">Nombre del punto</label><input id="spotName" placeholder="Nombre para guardar este punto">
+<label data-i="spotName">Nombre del punto</label><input id="spotName" placeholder="Nombre para guardar este punto"><label for="spotWater">Tipo de agua</label><select id="spotWater"><option value="sea">🌊 Mar</option><option value="river">🏞️ Río</option><option value="reservoir">💧 Pantano</option></select>
 <input id="mapLat" type="hidden"><input id="mapLon" type="hidden">
 <div class="row"><button onclick="getMyLocation()" data-i="myLocation">Mi ubicación GPS</button><button class="secondary" onclick="showMap()" data-i="showMap">Ver mapa</button></div><button class="primary" onclick="saveSpot()" data-i="saveSpot">Guardar punto</button>
 <div class="row"><button class="secondary" onclick="toggleMapFullscreen()">⛶ Ampliar mapa</button><button class="secondary" onclick="showMap()">Actualizar mapa</button></div><div id="mapPlaceTitle" class="notice" style="font-weight:700">Lugar seleccionado</div><div id="mapFrame" style="margin-top:12px;border-radius:13px;overflow:hidden;background:#e5eeeb;min-height:420px;display:grid;place-items:center"><span class="muted" data-i="mapPlaceholder">Busca un lugar para mostrar el mapa.</span></div>
@@ -237,7 +237,7 @@ function showMap(){
 function saveSpot(){
  const lat=parseFloat(document.getElementById("mapLat").value),lon=parseFloat(document.getElementById("mapLon").value),name=document.getElementById("spotName").value.trim()||"Punto de pesca";
  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){alert(lang==="es"?"Primero busca y selecciona una ubicación.":"Search and select a location first.");return}
- spots.unshift({id:Date.now(),lat,lon,name});persist();showMap();
+ spots.unshift({id:Date.now(),lat,lon,name,water:document.getElementById("spotWater").value||"river"});persist();showMap();
 }
 
 function chooseLicense(){
@@ -270,8 +270,9 @@ function renderLicenses(){
 
 function renderSpots(){
  const el=document.getElementById("spotList");if(!el)return;
- el.innerHTML=spots.length?spots.map((spot,index)=>'<div class="item" style="align-items:flex-start"><iframe title="Mapa de '+esc(spot.name)+'" src="https://www.openstreetmap.org/export/embed.html?bbox='+(spot.lon-0.012)+'%2C'+(spot.lat-0.008)+'%2C'+(spot.lon+0.012)+'%2C'+(spot.lat+0.008)+'&layer=mapnik&marker='+spot.lat+'%2C'+spot.lon+'" style="width:92px;height:76px;border:0;border-radius:9px;flex-shrink:0" loading="lazy"></iframe><div class="grow"><b>'+esc(spot.name)+'</b><small>'+Number(spot.lat).toFixed(5)+', '+Number(spot.lon).toFixed(5)+'</small></div><button class="secondary" onclick="document.getElementById(\'mapLat\').value='+spot.lat+';document.getElementById(\'mapLon\').value='+spot.lon+';document.getElementById(\'spotName\').value='+JSON.stringify(spot.name)+';showTab(\'map\');showMap()">'+(lang==="es"?"Ver":"View")+'</button><button class="danger" onclick="spots=del(spots,'+spot.id+');persist()">×</button></div>').join(""):'<div class="empty">'+t("empty")+'</div>';
+ el.innerHTML=spots.length?spots.map((spot)=>'<div class="item" style="align-items:flex-start"><iframe title="Mapa de '+esc(spot.name)+'" src="https://www.openstreetmap.org/export/embed.html?bbox='+(spot.lon-0.012)+'%2C'+(spot.lat-0.008)+'%2C'+(spot.lon+0.012)+'%2C'+(spot.lat+0.008)+'&layer=mapnik&marker='+spot.lat+'%2C'+spot.lon+'" style="width:92px;height:76px;border:0;border-radius:9px;flex-shrink:0" loading="lazy"></iframe><div class="grow"><b>'+esc(spot.name)+'</b><small>'+(spot.water==="sea"?"🌊 Mar":spot.water==="reservoir"?"💧 Pantano":"🏞️ Río")+' · '+Number(spot.lat).toFixed(5)+', '+Number(spot.lon).toFixed(5)+'</small></div><button class="secondary" onclick="document.getElementById(\'mapLat\').value='+spot.lat+';document.getElementById(\'mapLon\').value='+spot.lon+';document.getElementById(\'spotName\').value='+JSON.stringify(spot.name)+';document.getElementById(\'spotWater\').value='+JSON.stringify(spot.water||"river")+';showTab(\'map\');showMap()">'+(lang==="es"?"Ver":"View")+'</button><button class="danger" onclick="spots=del(spots,'+spot.id+');persist()">×</button></div>').join(""):'<div class="empty">'+t("empty")+'</div>';
 }
+
 const regionalSources={
  madrid:"https://www.comunidad.madrid/servicios/urbanismo-medio-ambiente/pesca",
  andalucia:"https://www.juntadeandalucia.es/medioambiente/portal/",
