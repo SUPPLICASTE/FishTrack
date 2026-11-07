@@ -420,6 +420,7 @@ function saveFishingSession(){
 }
 function render(){
  renderBase();
+ renderTools();
  const list=document.getElementById("gearList");
  if(list) list.innerHTML=gear.length?gear.map(g=>'<article class="card" style="display:flex;gap:14px;align-items:flex-start;margin:10px 0;padding:12px">'+(g.photo?'<img src="'+g.photo+'" alt="Foto de '+esc(g.name)+'" style="width:116px;height:116px;object-fit:cover;border-radius:12px">':'<div style="width:116px;height:116px;display:grid;place-items:center;background:#e5eeeb;border-radius:12px;font-size:38px">🎣</div>')+'<div class="grow"><b style="font-size:17px">'+esc(g.name)+'</b><div class="muted">'+esc(g.type||"")+' · '+esc(g.brand||"")+' '+esc(g.model||"")+'</div><div style="font-size:20px;font-weight:800;color:var(--teal);margin:7px 0">'+(g.price!==undefined&&g.price!==""?Number(g.price).toLocaleString("es-ES",{style:"currency",currency:"EUR"}):"Precio no indicado")+'</div><div class="muted">'+esc(g.notes||"")+'</div><button class="danger" style="margin-top:8px" onclick="gear=del(gear,'+g.id+');persist()">Eliminar</button></div></article>').join(""):'<div class="empty">'+t("empty")+'</div>';
  const ss=document.getElementById("sessionStats");
