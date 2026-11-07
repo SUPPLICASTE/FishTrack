@@ -129,17 +129,6 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 </section>
 <section class="panel" id="tools">
 <div class="card">
-<h2 data-i="toolsTitle">Herramientas gratuitas</h2>
-<p class="muted" data-i="toolsDesc">Utilidades que funcionan en el móvil sin suscripciones ni servicios de pago.</p>
-<h3 data-i="unitTitle">Conversor de medidas</h3>
-<div class="row"><div><label data-i="unitValue">Cantidad</label><input id="unitValue" type="number" min="0" step="any" placeholder="100"></div><div><label data-i="unitType">Conversión</label><select id="unitType"><option value="cm-in">cm → pulgadas</option><option value="in-cm">pulgadas → cm</option><option value="kg-lb">kg → libras</option><option value="lb-kg">libras → kg</option><option value="m-ft">m → pies</option><option value="ft-m">pies → m</option></select></div></div>
-<button class="primary" onclick="convertFishingUnit()" data-i="convert">Convertir</button><div id="unitResult" class="notice" style="margin-top:10px">—</div>
-</div>
-<div class="card">
-<h3 data-i="moonTitle">Fase lunar aproximada</h3><p class="muted" data-i="moonDesc">Consulta la fase lunar para una fecha. Es una referencia astronómica, no una garantía de actividad de los peces.</p>
-<label data-i="moonDate">Fecha</label><input id="moonDate" type="date"><button class="primary" onclick="calculateMoon()" data-i="moonCheck">Consultar fase lunar</button><div id="moonResult" class="notice" style="margin-top:10px">—</div>
-</div>
-<div class="card">
 <h3 data-i="checkTitle">Lista de material antes de salir</h3><p class="muted" data-i="checkDesc">Marca lo que ya tienes preparado. La lista se guarda en este móvil.</p>
 <div class="row"><input id="checkItem" placeholder="Ej. Licencia, caña, carrete..."><button onclick="addChecklistItem()" data-i="checkAdd">Añadir</button></div><div id="checklistItems"></div>
 </div>
