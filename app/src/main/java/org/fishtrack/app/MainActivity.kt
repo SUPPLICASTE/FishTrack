@@ -215,25 +215,48 @@ class MainActivity : Activity() {
     }
 
     private fun obtainNativeGpsLocation() {
+        val manager = getSystemService(LOCATION_SERVICE) as LocationManager
         try {
-            val manager = getSystemService(LOCATION_SERVICE) as LocationManager
             val hasFine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            val provider = when {
-                hasFine && manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
-                manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
-                hasFine && manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
-                else -> null
-            }
-            if (provider == null) {
-                web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Activa la ubicación del móvil (GPS) y vuelve a intentarlo.')", null)
+            val hasCoarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (!hasFine && !hasCoarse) {
+                web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Concede permiso de ubicación a FishTrack en los ajustes del móvil.')", null)
                 return
             }
+
+            val providers = mutableListOf<String>()
+            if (hasFine && manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) providers.add(LocationManager.GPS_PROVIDER)
+            if (manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) providers.add(LocationManager.NETWORK_PROVIDER)
+            if (manager.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)) providers.add(LocationManager.PASSIVE_PROVIDER)
+
+            fun deliver(location: Location) {
+                gpsHandler.removeCallbacksAndMessages(null)
+                gpsListener?.let { try { manager.removeUpdates(it) } catch (_: Exception) {} }
+                gpsListener = null
+                web.post {
+                    web.evaluateJavascript(
+                        "window.onFishTrackGpsLocation && window.onFishTrackGpsLocation(${location.latitude},${location.longitude})",
+                        null
+                    )
+                }
+            }
+
+            if (providers.isEmpty()) {
+                web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Activa la ubicación del móvil y vuelve a intentarlo.')", null)
+                return
+            }
+
+            val lastKnown = providers.mapNotNull { provider ->
+                try { manager.getLastKnownLocation(provider) } catch (_: SecurityException) { null } catch (_: Exception) { null }
+            }.maxByOrNull { it.time }
+            if (lastKnown != null && System.currentTimeMillis() - lastKnown.time < 120_000L) {
+                deliver(lastKnown)
+                return
+            }
+
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
-                    gpsHandler.removeCallbacksAndMessages(null)
-                    try { manager.removeUpdates(this) } catch (_: Exception) {}
-                    gpsListener = null
-                    web.evaluateJavascript("window.onFishTrackGpsLocation && window.onFishTrackGpsLocation(${location.latitude},${location.longitude})", null)
+                    deliver(location)
                 }
                 @Deprecated("Deprecated by Android")
                 override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
@@ -241,14 +264,35 @@ class MainActivity : Activity() {
                 override fun onProviderDisabled(provider: String) {}
             }
             gpsListener = listener
-            manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
-            gpsHandler.postDelayed({
-                try { manager.removeUpdates(listener) } catch (_: Exception) {}
-                if (gpsListener === listener) {
-                    gpsListener = null
-                    web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('No se pudo fijar la ubicación. Comprueba la señal GPS y vuelve a intentarlo.')", null)
+
+            var requested = false
+            for (provider in providers) {
+                try {
+                    manager.requestLocationUpdates(provider, 1000L, 0f, listener, Looper.getMainLooper())
+                    requested = true
+                } catch (_: SecurityException) {
+                } catch (_: IllegalArgumentException) {
+                } catch (_: Exception) {
                 }
-            }, 20000)
+            }
+            if (!requested) {
+                gpsListener = null
+                web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('No hay un proveedor de ubicación disponible. Activa la ubicación del móvil.')", null)
+                return
+            }
+
+            gpsHandler.postDelayed({
+                val fallback = providers.mapNotNull { provider ->
+                    try { manager.getLastKnownLocation(provider) } catch (_: Exception) { null }
+                }.maxByOrNull { it.time }
+                if (fallback != null) {
+                    deliver(fallback)
+                } else if (gpsListener === listener) {
+                    try { manager.removeUpdates(listener) } catch (_: Exception) {}
+                    gpsListener = null
+                    web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('No se pudo fijar la ubicación. Activa la ubicación, concede permiso preciso si es posible y vuelve a intentarlo.')", null)
+                }
+            }, 30_000L)
         } catch (_: SecurityException) {
             web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Concede permiso de ubicación a FishTrack en los ajustes del móvil.')", null)
         } catch (_: Exception) {
