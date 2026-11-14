@@ -413,14 +413,25 @@ function saveFishingSession(){
  const place=placeInput?placeInput.value.trim():"";
  const date=dateInput&&dateInput.value?dateInput.value:new Date().toISOString().slice(0,10);
  if(!place){alert(lang==="es"?"Escribe el lugar de pesca antes de guardar.":"Enter the fishing place before saving.");if(placeInput)placeInput.focus();return;}
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)){alert(lang==="es"?"Selecciona una fecha válida.":"Choose a valid date.");return;}
+ if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)){alert(lang==="es"?"Selecciona una fecha válida.":"Choose a valid date.");if(dateInput)dateInput.focus();return;}
+ const parsedDate=new Date(date+"T12:00:00");
+ if(Number.isNaN(parsedDate.getTime())||parsedDate.toISOString().slice(0,10)!==date){alert(lang==="es"?"La fecha seleccionada no es válida.":"The selected date is invalid.");return;}
  const activity={id:Date.now(),name:lang==="es"?"Actividad de pesca":"Fishing activity",place,date,catches:0,catchIds:[],gearIds:[],gearNames:[],customGear:[],photos:[],weather:"",status:"finished",activityOnly:true};
+ const previous=sessions.slice();
  sessions.unshift(activity);
- try{saveAll();render();if(typeof renderCalendar==="function")renderCalendar();if(typeof renderCharts==="function")renderCharts();
-  if(placeInput)placeInput.value="";if(dateInput)dateInput.value="";
-  const stats=document.getElementById("sessionStats");if(stats)stats.scrollIntoView({behavior:"smooth",block:"nearest"});
+ try{
+  localStorage.setItem("sessions",JSON.stringify(sessions));
+  if(placeInput)placeInput.value="";
+  if(dateInput)dateInput.value="";
+  render();
+  if(typeof renderCalendar==="function")renderCalendar();
+  if(typeof renderCharts==="function")renderCharts();
   alert(lang==="es"?"Actividad de pesca guardada correctamente.":"Fishing activity saved successfully.");
- }catch(error){sessions=sessions.filter(x=>x.id!==activity.id);alert(lang==="es"?"No se pudo guardar. Comprueba el espacio disponible en el dispositivo.":"Could not save. Check available device storage.");}
+ }catch(error){
+  sessions=previous;
+  try{localStorage.setItem("sessions",JSON.stringify(sessions));}catch(_){}
+  alert(lang==="es"?"No se pudo guardar la actividad. Comprueba el espacio disponible del móvil.":"Could not save the activity. Check available device storage.");
+ }
 }
 function editFishingActivity(id){
  const x=sessions.find(v=>v.id===Number(id));if(!x)return;
@@ -533,7 +544,7 @@ function calculateMoon(){
 }
 
 document.getElementById("date").value=new Date().toISOString().slice(0,10);if(document.getElementById("moonDate")){document.getElementById("moonDate").value=new Date().toISOString().slice(0,10);calculateMoon();}if(document.getElementById("sessionDate"))document.getElementById("sessionDate").value=new Date().toISOString().slice(0,10);translate();
-const FISHTRACK_VERSION = "3.2.3";
+const FISHTRACK_VERSION = "3.2.4";
 async function checkFishTrackUpdate(manual=false){
  const status=document.getElementById("appUpdateStatus"),button=document.getElementById("appUpdateButton");
  if(!status||!button)return;
