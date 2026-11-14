@@ -171,6 +171,22 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun openUpdate(url: String) {
+            runOnUiThread {
+                try {
+                    val parsed = Uri.parse(url)
+                    if (parsed.scheme != "https" || parsed.host != "github.com") {
+                        Toast.makeText(this@MainActivity, "Enlace de actualización no válido", Toast.LENGTH_LONG).show()
+                        return@runOnUiThread
+                    }
+                    startActivity(Intent(Intent.ACTION_VIEW, parsed))
+                } catch (_: Exception) {
+                    Toast.makeText(this@MainActivity, "No se pudo abrir la descarga", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun toast(message: String) {
             runOnUiThread { Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show() }
         }
