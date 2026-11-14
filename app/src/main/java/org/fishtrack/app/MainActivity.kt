@@ -9,6 +9,11 @@ import java.io.ByteArrayOutputStream
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Handler
+import android.os.Looper
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.webkit.GeolocationPermissions
@@ -37,6 +42,9 @@ class MainActivity : Activity() {
     private val capturePhotoRequest = 105
     private var pendingCameraTarget: String? = null
     private var pendingBackupText: String? = null
+    private var pendingNativeGps = false
+    private var gpsListener: LocationListener? = null
+    private val gpsHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -171,6 +179,20 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun requestGpsLocation() {
+            runOnUiThread {
+                val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                if (!fine && !coarse) {
+                    pendingNativeGps = true
+                    requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), requestLocation)
+                } else {
+                    obtainNativeGpsLocation()
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun openUpdate(url: String) {
             runOnUiThread {
                 try {
@@ -189,6 +211,46 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun toast(message: String) {
             runOnUiThread { Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show() }
+        }
+    }
+
+    private fun obtainNativeGpsLocation() {
+        try {
+            val manager = getSystemService(LOCATION_SERVICE) as LocationManager
+            val provider = when {
+                manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+                manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+                else -> null
+            }
+            if (provider == null) {
+                web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Activa la ubicación del móvil (GPS) y vuelve a intentarlo.')", null)
+                return
+            }
+            val listener = object : LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    gpsHandler.removeCallbacksAndMessages(null)
+                    try { manager.removeUpdates(this) } catch (_: Exception) {}
+                    gpsListener = null
+                    web.evaluateJavascript("window.onFishTrackGpsLocation && window.onFishTrackGpsLocation(${location.latitude},${location.longitude})", null)
+                }
+                @Deprecated("Deprecated by Android")
+                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+            gpsListener = listener
+            manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+            gpsHandler.postDelayed({
+                try { manager.removeUpdates(listener) } catch (_: Exception) {}
+                if (gpsListener === listener) {
+                    gpsListener = null
+                    web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('No se pudo fijar la ubicación. Comprueba la señal GPS y vuelve a intentarlo.')", null)
+                }
+            }, 20000)
+        } catch (_: SecurityException) {
+            web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Concede permiso de ubicación a FishTrack en los ajustes del móvil.')", null)
+        } catch (_: Exception) {
+            web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Error al consultar el GPS del móvil. Inténtalo de nuevo.')", null)
         }
     }
 
@@ -263,6 +325,11 @@ class MainActivity : Activity() {
             geoCallback?.invoke(geoOrigin, granted, false)
             geoCallback = null
             geoOrigin = null
+            if (pendingNativeGps) {
+                pendingNativeGps = false
+                if (granted) obtainNativeGpsLocation()
+                else web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Permiso de ubicación denegado. Actívalo en los ajustes de FishTrack.')", null)
+            }
         }
     }
 
