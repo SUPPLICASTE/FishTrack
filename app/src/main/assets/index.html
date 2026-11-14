@@ -362,7 +362,7 @@ function renderFishingRecommendations(){const list=document.getElementById("reco
 function openRecommendedPlace(i){const p=recommendedFishingPlaces[i];if(!p)return;document.getElementById("mapLat").value=p.lat;document.getElementById("mapLon").value=p.lon;document.getElementById("spotName").value=p.name;document.getElementById("spotWater").value="river";showTab("map");showMap();}
 function saveRecommendedPlace(i){const p=recommendedFishingPlaces[i];if(!p)return;if(spots.some(x=>Math.abs(Number(x.lat)-p.lat)<0.0001&&Math.abs(Number(x.lon)-p.lon)<0.0001)){alert(lang==="es"?"Este punto ya está guardado.":"This spot is already saved.");return;}spots.unshift({id:Date.now(),lat:p.lat,lon:p.lon,name:p.name,water:"river",features:"Sugerido desde OpenStreetMap; comprobar permisos y acceso.",photos:[]});persist();alert(lang==="es"?"Punto guardado en Mis puntos guardados.":"Spot saved to My saved spots.");}
 
-function searchWeather(){
+async function searchWeather(){
  const q=document.getElementById("weatherQuery").value.trim();if(!q)return;
  const box=document.getElementById("weatherResult");box.textContent=lang==="es"?"Buscando localidad…":"Searching place…";
  try{const r=await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(q)+"&count=1&language="+(lang==="es"?"es":"en")+"&format=json");const d=await r.json();if(!d.results||!d.results.length)throw new Error("not found");const p=d.results[0];await loadWeather(p.latitude,p.longitude,[p.name,p.admin1,p.country].filter(Boolean).join(", "));}
