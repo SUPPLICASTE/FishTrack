@@ -37,6 +37,7 @@ class MainActivity : Activity() {
     private var geoOrigin: String? = null
     private val pickImage = 101
     private val requestLocation = 102
+    private val requestNativeLocation = 106
     private val saveBackupRequest = 103
     private val pickLicenseRequest = 104
     private val capturePhotoRequest = 105
@@ -185,7 +186,7 @@ class MainActivity : Activity() {
                 val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 if (!fine && !coarse) {
                     pendingNativeGps = true
-                    requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), requestLocation)
+                    requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), requestNativeLocation)
                 } else {
                     obtainNativeGpsLocation()
                 }
@@ -371,11 +372,11 @@ class MainActivity : Activity() {
             geoCallback?.invoke(geoOrigin, granted, false)
             geoCallback = null
             geoOrigin = null
-            if (pendingNativeGps) {
-                pendingNativeGps = false
-                if (granted) obtainNativeGpsLocation()
-                else web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Permiso de ubicación denegado. Actívalo en los ajustes de FishTrack.')", null)
-            }
+        } else if (requestCode == requestNativeLocation) {
+            val granted = grantResults.any { it == PackageManager.PERMISSION_GRANTED }
+            pendingNativeGps = false
+            if (granted) obtainNativeGpsLocation()
+            else web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Permiso de ubicación denegado. Actívalo en los ajustes de FishTrack.')", null)
         }
     }
 
