@@ -12,10 +12,27 @@ android {
         applicationId = "org.fishtrack.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "3.2.1"
+        versionCode = 7
+        versionName = "3.2.2"
     }
 
+    signingConfigs {
+        create("release") {
+            val path = System.getenv("ANDROID_KEYSTORE_FILE")
+            if (!path.isNullOrBlank()) {
+                storeFile = file(path)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
