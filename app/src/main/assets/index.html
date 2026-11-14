@@ -436,9 +436,19 @@ function addGear(){
 function renderCharts(){
  const keys=["sea","river","reservoir"],labels={sea:t("sea"),river:t("river"),reservoir:t("reservoir")},max=Math.max(1,...keys.map(k=>catches.filter(c=>c.water===k).length));
  document.getElementById("chart").innerHTML=keys.map(k=>{const n=catches.filter(c=>c.water===k).length;return '<div><b>'+labels[k]+' · '+n+'</b><div class="flowbar"><span style="width:'+(n/max*100)+'%"></span></div></div>'}).join("");
- const counts={};catches.forEach(c=>counts[c.species]=(counts[c.species]||0)+1);
- const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
- document.getElementById("speciesChart").innerHTML=entries.length?entries.map(([s,n])=>'<div class="item"><div class="grow"><b>'+esc(s)+'</b><small>'+n+'</small></div></div>').join(""):'<div class="empty">'+t("empty")+'</div>';
+ // Cuenta visitas por lugar y día: una jornada sin capturas también suma,
+ // y varias capturas de la misma salida no duplican la visita.
+ const visits=new Map();
+ const addVisit=(place,date)=>{const name=String(place||"").trim();if(!name)return;const day=String(date||"").slice(0,10)||"sin-fecha";const key=name.toLocaleLowerCase()+"|"+day;if(!visits.has(key))visits.set(key,name)};
+ (Array.isArray(sessions)?sessions:[]).forEach(x=>addVisit(x.place,x.date));
+ catches.forEach(c=>addVisit(c.place,c.date));
+ const counts={};visits.forEach(name=>{counts[name]=(counts[name]||0)+1});
+ const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+ const placeChart=document.getElementById("placeChart");
+ if(placeChart)placeChart.innerHTML=entries.length?entries.map(([name,n])=>'<div><b>'+esc(name)+' · '+n+' '+(lang==="es"?(n===1?"jornada":"jornadas"):(n===1?"trip":"trips"))+'</b><div class="flowbar"><span style="width:'+(n/Math.max(1,...entries.map(x=>x[1]))*100)+'%"></span></div></div>').join(""):'<div class="empty">'+(lang==="es"?"Aún no hay jornadas ni capturas con ubicación.":"No trips or catches with a location yet.")+'</div>';
+ const countsSpecies={};catches.forEach(c=>countsSpecies[c.species]=(countsSpecies[c.species]||0)+1);
+ const speciesEntries=Object.entries(countsSpecies).sort((a,b)=>b[1]-a[1]);
+ document.getElementById("speciesChart").innerHTML=speciesEntries.length?speciesEntries.map(([name,n])=>'<div class="item"><div class="grow"><b>'+esc(name)+'</b><small>'+n+'</small></div></div>').join(""):'<div class="empty">'+t("empty")+'</div>';
 }
 function showMap(){
  const lat=parseFloat(document.getElementById("mapLat").value),lon=parseFloat(document.getElementById("mapLon").value);
