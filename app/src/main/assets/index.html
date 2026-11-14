@@ -355,7 +355,16 @@ function weatherDescription(code){const es={0:"Despejado",1:"Mayormente despejad
 async 
 let recommendationCenter={lat:null,lon:null,label:""},recommendedFishingPlaces=[],recommendationLastSearch=0,recommendationLoading=false;
 function setRecommendationCenter(lat,lon,label){recommendationCenter={lat:Number(lat),lon:Number(lon),label:label|| (lang==="es"?"tu ubicación":"your location")};const refresh=document.getElementById("refreshRecommendations");if(refresh)refresh.disabled=false;searchNearbyFishingPlaces(recommendationCenter.lat,recommendationCenter.lon);}
-function recommendationsFromGPS(force){if(recommendationLoading)return;if(!navigator.geolocation){document.getElementById("recommendationStatus").textContent=lang==="es"?"Este dispositivo no ofrece geolocalización. Comprueba los permisos de ubicación de FishTrack.":"Geolocation is unavailable. Check FishTrack location permissions.";return;}recommendationLoading=true;document.getElementById("recommendationStatus").textContent=lang==="es"?"Obteniendo tu ubicación GPS…":"Getting your GPS location…";navigator.geolocation.getCurrentPosition(pos=>{recommendationLoading=false;recommendationLastSearch=Date.now();setRecommendationCenter(pos.coords.latitude,pos.coords.longitude,lang==="es"?"tu ubicación":"your location");},err=>{recommendationLoading=false;const msg=err&&err.code===1?(lang==="es"?"Permiso de ubicación denegado. Activa la ubicación para FishTrack en los ajustes del móvil y vuelve a intentarlo.":"Location permission denied. Enable location for FishTrack in your phone settings and try again."):err&&err.code===3?(lang==="es"?"La ubicación está tardando demasiado. Comprueba el GPS y vuelve a intentarlo.":"Location timed out. Check GPS and try again."):(lang==="es"?"No se pudo obtener tu ubicación. Activa el GPS y comprueba los permisos de la aplicación.":"Could not get your location. Enable GPS and check app permissions.");document.getElementById("recommendationStatus").textContent=msg;},{enableHighAccuracy:true,timeout:20000,maximumAge:force?0:120000});}
+function recommendationsFromGPS(force){
+ if(recommendationLoading)return;
+ const status=document.getElementById("recommendationStatus");if(!status)return;
+ recommendationLoading=true;status.textContent=lang==="es"?"Solicitando ubicación GPS del móvil…":"Requesting the phone GPS location…";
+ if(window.FishTrackNative&&typeof FishTrackNative.requestGpsLocation==="function"){FishTrackNative.requestGpsLocation();return;}
+ if(!navigator.geolocation){recommendationLoading=false;status.textContent=lang==="es"?"La ubicación no está disponible. Activa los permisos de ubicación.":"Location is unavailable. Enable location permissions.";return;}
+ navigator.geolocation.getCurrentPosition(pos=>{recommendationLoading=false;recommendationLastSearch=Date.now();setRecommendationCenter(pos.coords.latitude,pos.coords.longitude,lang==="es"?"tu ubicación":"your location");},err=>{recommendationLoading=false;const msg=err&&err.code===1?(lang==="es"?"Permiso denegado. Activa la ubicación para FishTrack en los ajustes del móvil.":"Permission denied. Enable FishTrack location in phone settings."):err&&err.code===3?(lang==="es"?"El GPS ha tardado demasiado. Comprueba que la ubicación del móvil esté activada y vuelve a intentarlo.":"GPS timed out. Make sure phone location is enabled and try again."):(lang==="es"?"No se pudo obtener la ubicación. Activa el GPS y concede permiso a FishTrack.":"Could not get location. Enable GPS and grant FishTrack permission.");status.textContent=msg;},{enableHighAccuracy:true,timeout:25000,maximumAge:force?0:60000});
+}
+window.onFishTrackGpsLocation=function(lat,lon){recommendationLoading=false;recommendationLastSearch=Date.now();setRecommendationCenter(Number(lat),Number(lon),lang==="es"?"tu ubicación GPS":"your GPS location");};
+window.onFishTrackGpsError=function(message){recommendationLoading=false;const status=document.getElementById("recommendationStatus");if(status)status.textContent=message|| (lang==="es"?"No se pudo obtener el GPS.":"Could not get GPS location.");};
 function refreshRecommendationsNow(){if(recommendationCenter.lat!==null)searchNearbyFishingPlaces(recommendationCenter.lat,recommendationCenter.lon);}
 function distanceKm(a,b,c,d){const rad=x=>x*Math.PI/180,dy=rad(c-a),dx=rad(d-b),v=Math.sin(dy/2)**2+Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dx/2)**2;return 6371*2*Math.atan2(Math.sqrt(v),Math.sqrt(1-v));}
 function recommendationCategory(tags){if(tags.leisure==="fishing"||tags.sport==="fishing"||tags.fishing==="yes")return "fishing";if(tags.natural==="coastline"||tags.place==="sea"||tags.water==="sea"||tags.water==="saltwater")return "sea";if(tags.water==="river"||tags.waterway==="river"||tags.waterway==="stream"||tags.waterway==="canal")return "river";if(["lake","reservoir","pond"].includes(tags.water)||tags.landuse==="reservoir"||tags.natural==="water")return "reservoir";return "all";}
@@ -400,12 +409,18 @@ function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
    Conserva las claves de almacenamiento existentes y añade solo "sessions". */
 var sessions=readStore("sessions",[]);
 function saveFishingSession(){
- const place=document.getElementById("sessionPlace").value.trim();
- const date=document.getElementById("sessionDate").value||new Date().toISOString().slice(0,10);
- if(!place){alert(lang==="es"?"Escribe el lugar de pesca.":"Enter the fishing place.");return;}
- sessions.unshift({id:Date.now(),name:"Jornada",place,date,catches:0,catchIds:[],gearIds:[],gearNames:[],customGear:[],photos:[],weather:"",status:"finished",activityOnly:true});
- localStorage.sessions=JSON.stringify(sessions);
- document.getElementById("sessionPlace").value="";document.getElementById("sessionDate").value="";render();
+ const placeInput=document.getElementById("sessionPlace"),dateInput=document.getElementById("sessionDate");
+ const place=placeInput?placeInput.value.trim():"";
+ const date=dateInput&&dateInput.value?dateInput.value:new Date().toISOString().slice(0,10);
+ if(!place){alert(lang==="es"?"Escribe el lugar de pesca antes de guardar.":"Enter the fishing place before saving.");if(placeInput)placeInput.focus();return;}
+ if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)){alert(lang==="es"?"Selecciona una fecha válida.":"Choose a valid date.");return;}
+ const activity={id:Date.now(),name:lang==="es"?"Actividad de pesca":"Fishing activity",place,date,catches:0,catchIds:[],gearIds:[],gearNames:[],customGear:[],photos:[],weather:"",status:"finished",activityOnly:true};
+ sessions.unshift(activity);
+ try{saveAll();render();if(typeof renderCalendar==="function")renderCalendar();if(typeof renderCharts==="function")renderCharts();
+  if(placeInput)placeInput.value="";if(dateInput)dateInput.value="";
+  const stats=document.getElementById("sessionStats");if(stats)stats.scrollIntoView({behavior:"smooth",block:"nearest"});
+  alert(lang==="es"?"Actividad de pesca guardada correctamente.":"Fishing activity saved successfully.");
+ }catch(error){sessions=sessions.filter(x=>x.id!==activity.id);alert(lang==="es"?"No se pudo guardar. Comprueba el espacio disponible en el dispositivo.":"Could not save. Check available device storage.");}
 }
 function editFishingActivity(id){
  const x=sessions.find(v=>v.id===Number(id));if(!x)return;
