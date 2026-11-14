@@ -518,7 +518,7 @@ function calculateMoon(){
 }
 
 document.getElementById("date").value=new Date().toISOString().slice(0,10);if(document.getElementById("moonDate")){document.getElementById("moonDate").value=new Date().toISOString().slice(0,10);calculateMoon();}if(document.getElementById("sessionDate"))document.getElementById("sessionDate").value=new Date().toISOString().slice(0,10);translate();
-const FISHTRACK_VERSION = "3.2.2";
+const FISHTRACK_VERSION = "3.2.3";
 async function checkFishTrackUpdate(manual=false){
  const status=document.getElementById("appUpdateStatus"),button=document.getElementById("appUpdateButton");
  if(!status||!button)return;
