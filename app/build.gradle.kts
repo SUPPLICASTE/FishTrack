@@ -12,8 +12,8 @@ android {
         applicationId = "org.fishtrack.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 9
-        versionName = "3.2.4"
+        versionCode = 10
+        versionName = "3.2.5"
     }
 
     signingConfigs {
