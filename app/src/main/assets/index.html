@@ -138,6 +138,7 @@ function persist(){localStorage.catches=JSON.stringify(catches);localStorage.gea
 }
 function chooseGallery(target){
  window.photoPickerTarget=target;
+ if(window.FishTrackNative&&FishTrackNative.chooseGalleryPhoto){FishTrackNative.chooseGalleryPhoto(target);return;}
  const picker=document.getElementById("sharedPhotoPicker");
  if(picker){picker.value="";picker.click();}
 }
