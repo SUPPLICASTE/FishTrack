@@ -1,0 +1,1 @@
+window.FISH_CATALOG_DATA=(window.FISH_CATALOG_DATA||[]).concat([["Trucha de hocico blando","Salmo obtusirostris","Salmonidae","Dulceacuícola","25-50 cm","Endemismo balcánico amenazado."]].map(([common,scientific,family,habitat,size,traits])=>({common,scientific,family,habitat,size,traits})));
