@@ -12,8 +12,8 @@ android {
         applicationId = "org.fishtrack.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 11
-        versionName = "3.3.0"
+        versionCode = 12
+        versionName = "3.3.1"
     }
 
     signingConfigs {
@@ -28,6 +28,12 @@ android {
         }
     }
     buildTypes {
+        getByName("debug") {
+            // Use the persistent upload key when configured in GitHub Secrets.
+            if (!System.getenv("ANDROID_KEYSTORE_FILE").isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
