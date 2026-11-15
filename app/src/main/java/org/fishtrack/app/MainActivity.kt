@@ -3,6 +3,7 @@ package org.fishtrack.app
 import android.Manifest
 import android.app.Activity
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.provider.MediaStore
 import android.util.Base64
 import java.io.ByteArrayOutputStream
@@ -41,7 +42,9 @@ class MainActivity : Activity() {
     private val saveBackupRequest = 103
     private val pickLicenseRequest = 104
     private val capturePhotoRequest = 105
+    private val pickGalleryPhotoRequest = 107
     private var pendingCameraTarget: String? = null
+    private var pendingGalleryTarget: String? = null
     private var pendingBackupText: String? = null
     private var pendingNativeGps = false
     private var gpsListener: LocationListener? = null
@@ -127,7 +130,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun capturePhoto(target: String) {
             runOnUiThread {
-                if (target != "gear" && target != "catch") return@runOnUiThread
+                if (target != "gear" && target != "catch" && !target.startsWith("gearEdit:") && !target.startsWith("catchEdit:") && !target.startsWith("spotEdit:") && !target.startsWith("sessionEdit:")) return@runOnUiThread
                 try {
                     pendingCameraTarget = target
                     val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
@@ -140,6 +143,24 @@ class MainActivity : Activity() {
                 } catch (_: Exception) {
                     pendingCameraTarget = null
                     Toast.makeText(this@MainActivity, "No se pudo abrir la cámara", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun chooseGalleryPhoto(target: String) {
+            runOnUiThread {
+                pendingGalleryTarget = target
+                try {
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "image/*"
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivityForResult(Intent.createChooser(intent, "Seleccionar fotografía"), pickGalleryPhotoRequest)
+                } catch (_: Exception) {
+                    pendingGalleryTarget = null
+                    Toast.makeText(this@MainActivity, "No se pudo abrir la galería", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -317,6 +338,30 @@ class MainActivity : Activity() {
                     web.evaluateJavascript("window.onCameraPhoto && window.onCameraPhoto(${JSONObject.quote(target)}, ${JSONObject.quote(dataUrl)})", null)
                 } catch (_: Exception) {
                     Toast.makeText(this, "No se pudo procesar la foto", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else if (requestCode == pickGalleryPhotoRequest) {
+            val target = pendingGalleryTarget
+            pendingGalleryTarget = null
+            val uri = if (resultCode == RESULT_OK) data?.data else null
+            if (target != null && uri != null) {
+                try {
+                    val bitmap = contentResolver.openInputStream(uri)?.use { input ->
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        contentResolver.openInputStream(uri)?.use { it2 -> BitmapFactory.decodeStream(it2, null, bounds) }
+                        var sample = 1
+                        while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
+                        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+                        BitmapFactory.decodeStream(input, null, options)
+                    } ?: throw IllegalStateException("No se pudo leer la fotografía")
+                    val output = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 78, output)
+                    bitmap.recycle()
+                    val encoded = Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+                    val dataUrl = "data:image/jpeg;base64,$encoded"
+                    web.evaluateJavascript("window.onCameraPhoto && window.onCameraPhoto(${JSONObject.quote(target)}, ${JSONObject.quote(dataUrl)})", null)
+                } catch (_: Exception) {
+                    Toast.makeText(this, "No se pudo cargar la fotografía", Toast.LENGTH_LONG).show()
                 }
             }
         } else if (requestCode == pickLicenseRequest) {
