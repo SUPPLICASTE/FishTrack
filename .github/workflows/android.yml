@@ -38,12 +38,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
-            echo "::warning::Signing secrets are not configured. Building an unsigned debug APK; it cannot update an installation signed with another key."
-            exit 0
+            echo "::error::Permanent signing secrets are missing. Refusing to publish an APK with a temporary signing key."
+            exit 1
           fi
           KEYSTORE_PATH="$RUNNER_TEMP/fishtrack-upload.jks"
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
           test -s "$KEYSTORE_PATH"
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
           echo "ANDROID_KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
           echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
           echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
@@ -60,6 +61,14 @@ jobs:
       - name: Build debug APK
         if: startsWith(github.ref, 'refs/heads/')
         run: gradle :app:assembleDebug
+
+      - name: Verify permanent APK signature
+        if: startsWith(github.ref, 'refs/heads/')
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | tee "$RUNNER_TEMP/apk-signature.txt"
+          grep -F "Signer #1 certificate SHA-256 digest: e637242c7b4b5a3c4f306fcf4618fff39e4131ed00cb3a5a6f09bbc89fa3eb01" "$RUNNER_TEMP/apk-signature.txt"
 
       - name: Upload APK
         if: startsWith(github.ref, 'refs/heads/')
@@ -80,6 +89,14 @@ jobs:
       - name: Build release APK
         if: startsWith(github.ref, 'refs/tags/')
         run: gradle :app:assembleRelease
+
+      - name: Verify permanent release signature
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee "$RUNNER_TEMP/apk-signature.txt"
+          grep -F "Signer #1 certificate SHA-256 digest: e637242c7b4b5a3c4f306fcf4618fff39e4131ed00cb3a5a6f09bbc89fa3eb01" "$RUNNER_TEMP/apk-signature.txt"
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
