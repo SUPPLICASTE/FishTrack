@@ -1,4 +1,4 @@
-name: Build and release FishTrack APK
+name: Build FishTrack APK
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify project identity and data persistence
+      - name: Verify app identity and local data storage
         run: |
           test -d app/src/main
           test -f app/src/main/assets/index.html
@@ -32,72 +32,65 @@ jobs:
           grep -Fqx '        applicationId = "org.fishtrack.app"' app/build.gradle.kts
           grep -Fq 'web.settings.domStorageEnabled = true' app/src/main/java/org/fishtrack/app/MainActivity.kt
           grep -Fq 'fishtrack-webstorage-backup.json' app/src/main/java/org/fishtrack/app/MainActivity.kt
-          echo "Application ID fixed; WebView storage and local recovery snapshot found."
-
-      - name: Restore permanent signing key
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::error::Missing signing secrets. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD in GitHub Actions secrets."
-            exit 1
-          fi
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > app/fishtrack.keystore
-          test -s app/fishtrack.keystore
-          keytool -list -keystore app/fishtrack.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
-          echo "Permanent FishTrack signing key restored."
+          echo "OK: fixed application ID and local WebView data recovery are present."
 
       - name: Set increasing version code
         run: |
           sed -i -E "s/versionCode = [0-9]+/versionCode = $GITHUB_RUN_NUMBER/" app/build.gradle.kts
           echo "Using versionCode $GITHUB_RUN_NUMBER"
 
+      # Every push gets a test APK. Debug signing is NOT suitable for public updates.
+      - name: Build debug APK for testing
+        run: gradle :app:assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FishTrack-debug-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      # A release APK is produced only when the owner has configured the permanent key.
+      - name: Restore permanent release key
+        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > app/fishtrack.keystore
+          test -s app/fishtrack.keystore
+          keytool -list -keystore app/fishtrack.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+
       - name: Build signed release APK
-        run: gradle :app:assembleRelease
+        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle :app:assembleRelease
 
-      - name: Verify APK signature
+      - name: Verify release APK signature
+        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
         run: |
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
-          echo "Release APK is signed and verified."
 
-      - name: Upload APK artifact
+      - name: Upload signed release APK
+        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: FishTrack-APK-build-${{ github.run_number }}
+          name: FishTrack-release-${{ github.run_number }}
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Prepare release version
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Explain release signing is not configured
+        if: ${{ secrets.KEYSTORE_BASE64 == '' || secrets.KEYSTORE_PASSWORD == '' || secrets.KEY_ALIAS == '' || secrets.KEY_PASSWORD == '' }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          sed -i -E "s/versionName = \"[^\"]+\"/versionName = \"$VERSION\"/" app/build.gradle.kts
-
-      - name: Build tagged release APK
-        if: startsWith(github.ref, 'refs/tags/')
-        run: gradle :app:assembleRelease
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" app/build/outputs/apk/release/app-release.apk \
-            --title "FishTrack $GITHUB_REF_NAME" \
-            --notes "Nueva versión de FishTrack."
+          echo "::warning::Debug APK built successfully. A permanent signed release APK is not produced until the four signing secrets are configured."
