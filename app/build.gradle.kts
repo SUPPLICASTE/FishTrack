@@ -1,4 +1,3 @@
- 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -9,7 +8,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        // Identificador permanente: NO cambiarlo en futuras versiones.
+        // Identificador permanente: no cambiarlo, así Android reconoce las actualizaciones.
         applicationId = "org.fishtrack.app"
         minSdk = 24
         targetSdk = 35
@@ -19,27 +18,32 @@ android {
 
     signingConfigs {
         create("release") {
-            val path = System.getenv("ANDROID_KEYSTORE_FILE")
-            if (!path.isNullOrBlank()) {
-                storeFile = file(path)
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            // La misma keystore se usa en todas las versiones publicadas.
+            val keystore = file("fishtrack.keystore")
+            val storePass = System.getenv("KEYSTORE_PASSWORD")
+            val alias = System.getenv("KEY_ALIAS")
+            val keyPass = System.getenv("KEY_PASSWORD")
+
+            if (keystore.exists() && !storePass.isNullOrBlank() &&
+                !alias.isNullOrBlank() && !keyPass.isNullOrBlank()) {
+                storeFile = keystore
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
             }
         }
     }
+
     buildTypes {
         getByName("debug") {
-            // Use the persistent upload key when configured in GitHub Secrets.
-            if (!System.getenv("ANDROID_KEYSTORE_FILE").isNullOrBlank()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            // Las compilaciones debug locales conservan la firma debug habitual.
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
