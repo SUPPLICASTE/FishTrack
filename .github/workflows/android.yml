@@ -36,6 +36,15 @@ jobs:
           grep -Fq 'fishtrack-webstorage-backup.json' app/src/main/java/org/fishtrack/app/MainActivity.kt
           echo "OK: fixed application ID and local WebView data recovery are present."
 
+      - name: Inspect currently published APK signing certificate
+        continue-on-error: true
+        run: |
+          APK_URL="https://github.com/SUPPLICASTE/FishTrack/releases/download/FishTrack/FishTrack.apk"
+          curl -fL --retry 3 "$APK_URL" -o /tmp/FishTrack-existing.apk
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs /tmp/FishTrack-existing.apk
+
       - name: Set increasing version code
         run: |
           sed -i -E "s/versionCode = [0-9]+/versionCode = $GITHUB_RUN_NUMBER/" app/build.gradle.kts
