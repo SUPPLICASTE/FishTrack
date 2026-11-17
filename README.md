@@ -33,7 +33,14 @@ FishTrack no requiere crear una cuenta ni registrarse. Tus datos se guardan loca
 
 ¡Que cada jornada cuente! 🎣
 
-## Versión 3.3.0
+## Actualizaciones y conservación de datos
+
+- Instala las nuevas versiones **encima de la versión existente**. No desinstales FishTrack ni borres sus datos: las capturas, fotos y ajustes se guardan en el almacenamiento privado de la aplicación.
+- Se mantiene el identificador Android `org.fishtrack.app` para que Android reconozca la actualización como la misma aplicación.
+- Las APK de actualización deben estar firmadas siempre con la misma clave privada. GitHub Actions ahora exige la clave permanente configurada en los secretos del repositorio y detiene la compilación si falta; así evita ofrecer una APK firmada temporalmente que Android no pueda instalar encima de la anterior.
+- Antes de actualizar, crea además una copia desde el apartado de copias de seguridad de FishTrack y guárdala fuera del móvil. No compartas ni pierdas la clave de firma: sin ella no se podrán instalar actualizaciones sobre esa instalación.
+
+## Versión 3.3.2
 
 Esta versión continúa mejorando la gestión de jornadas, las estadísticas y el manejo de fotografías. Las novedades y correcciones se incorporan al código fuente del repositorio; para utilizarlas en Android es necesario instalar el APK generado con la versión más reciente.
 
