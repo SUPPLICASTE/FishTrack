@@ -117,6 +117,14 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <div class="row"><input id="checkItem" placeholder="Ej. Licencia, caña, carrete..."><button onclick="addChecklistItem()" data-i="checkAdd">Añadir</button></div><div id="checklistItems"></div>
 </div>
 <div class="card"><h3 data-i="gearCostTitle">Valor del material registrado</h3><div id="gearCostTotal" class="stat"><b>0 €</b><span data-i="gearCostDesc">Suma de los precios que has anotado</span></div></div>
+<div class="card">
+<h3 data-i="backupTitle">Copia de seguridad</h3>
+<p class="muted" data-i="importWarning">Guarda una copia antes de cambiar de móvil o actualizar la aplicación.</p>
+<button class="primary" type="button" onclick="exportData()" data-i="export">Exportar copia de seguridad (JSON)</button>
+<label data-i="importLabel" for="backupFile">Restaurar copia JSON</label>
+<input id="backupFile" type="file" accept="application/json,.json" hidden onchange="importData()">
+<button class="secondary primary" type="button" onclick="document.getElementById('backupFile').click()" data-i="importButton">Importar copia</button>
+</div>
 </section>
 <footer>FishTrack · Open source · Datos almacenados en tu dispositivo</footer>
 </main>
