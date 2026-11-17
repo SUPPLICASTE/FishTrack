@@ -55,6 +55,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <div class="card"><h2 data-i="welcome">Bienvenido a FishTrack</h2><p class="muted" data-i="intro">Registra tus capturas, organiza tu equipo y descubre tus mejores escenarios de pesca. Tus datos se guardan en este dispositivo.</p>
 <div class="grid"><div class="stat"><b id="totalFish">0</b><span data-i="totalCatches">Capturas</span></div><div class="stat"><b id="totalGear">0</b><span data-i="gearCount">Materiales</span></div></div></div>
 <div class="card"><h3 data-i="quick">Acceso rápido</h3><div class="row"><button onclick="showTab('catches')" data-i="addCatch">＋ Añadir captura</button><button class="secondary" onclick="showTab('gear')" data-i="addGear">＋ Material</button></div></div>
+<div class="card" id="homeBackupCard"><h3>🛡️ <span data-i="backupTitle">Copia de seguridad</span></h3><p class="muted" data-i="importWarning">Guarda una copia antes de cambiar de móvil o actualizar la aplicación.</p><div class="row"><button class="primary" type="button" onclick="exportData()" data-i="export">Exportar copia de seguridad (JSON)</button><button class="secondary" type="button" onclick="document.getElementById('backupFile').click()" data-i="importButton">Importar copia</button></div></div>
 <div class="card"><h3 data-i="recent">Últimas capturas</h3><div id="recentList" class="empty" data-i="noCatch">Todavía no has registrado capturas.</div></div>
 </section>
 <section class="panel" id="catches">
