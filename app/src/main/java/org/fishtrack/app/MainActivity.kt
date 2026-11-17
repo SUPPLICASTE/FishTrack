@@ -161,6 +161,59 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun getLicenseBackup(): String {
+            return try {
+                val directory = File(filesDir, "licenses")
+                val result = JSONObject()
+                if (directory.exists() && directory.isDirectory) {
+                    directory.listFiles()?.filter { it.isFile && it.name.matches(Regex("[A-Za-z0-9-]{1,50}\\.pdf")) }?.forEach { file ->
+                        if (file.length() <= 20L * 1024L * 1024L) {
+                            val encoded = Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
+                            result.put(file.nameWithoutExtension, encoded)
+                        }
+                    }
+                }
+                result.toString()
+            } catch (_: Exception) {
+                "{}"
+            }
+        }
+
+        @JavascriptInterface
+        fun restoreLicenseBackup(content: String) {
+            try {
+                val source = JSONObject(content)
+                val directory = File(filesDir, "licenses")
+                if (!directory.exists() && !directory.mkdirs()) return
+                val totalLimit = 40L * 1024L * 1024L
+                var totalBytes = 0L
+                val keys = source.keys()
+                while (keys.hasNext()) {
+                    val id = keys.next()
+                    if (!id.matches(Regex("[A-Za-z0-9-]{1,50}"))) continue
+                    val encoded = source.optString(id, "")
+                    if (encoded.isBlank()) continue
+                    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+                    if (bytes.size > 20 * 1024 * 1024 || totalBytes + bytes.size > totalLimit) continue
+                    val destination = File(directory, "$id.pdf")
+                    val temporary = File(directory, "$id.pdf.tmp")
+                    FileOutputStream(temporary).use { stream ->
+                        stream.write(bytes)
+                        stream.fd.sync()
+                    }
+                    if (destination.exists()) destination.delete()
+                    if (!temporary.renameTo(destination)) {
+                        temporary.copyTo(destination, overwrite = true)
+                        temporary.delete()
+                    }
+                    totalBytes += bytes.size
+                }
+            } catch (_: Exception) {
+                // A malformed or oversized optional PDF backup must not block record recovery.
+            }
+        }
+
+        @JavascriptInterface
         fun shareText(title: String, message: String) {
             runOnUiThread {
                 val send = Intent(Intent.ACTION_SEND).apply {
