@@ -61,6 +61,32 @@ class MainActivity : Activity() {
         web.settings.setGeolocationEnabled(true)
         web.addJavascriptInterface(NativeBridge(), "FishTrackNative")
         web.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                if (url == "file:///android_asset/index.html") {
+                    // Restore missing WebView keys from the private snapshot before the app is used.
+                    web.evaluateJavascript("""
+                        (function() {
+                          try {
+                            var raw = FishTrackNative.getWebStorageBackup();
+                            if (raw) {
+                              var saved = JSON.parse(raw);
+                              Object.keys(saved).forEach(function(key) {
+                                if (localStorage.getItem(key) === null) localStorage.setItem(key, saved[key]);
+                              });
+                            }
+                            var current = {};
+                            for (var i = 0; i < localStorage.length; i++) {
+                              var key = localStorage.key(i);
+                              current[key] = localStorage.getItem(key);
+                            }
+                            FishTrackNative.saveWebStorage(JSON.stringify(current));
+                          } catch (e) {}
+                        })();
+                    """.trimIndent(), null)
+                }
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
                 if (!request.isForMainFrame || url.startsWith("file:///android_asset/")) return false
@@ -103,6 +129,37 @@ class MainActivity : Activity() {
     }
 
     inner class NativeBridge {
+        @JavascriptInterface
+        fun getWebStorageBackup(): String {
+            return try {
+                val backup = File(filesDir, "fishtrack-webstorage-backup.json")
+                if (backup.exists()) backup.readText(Charsets.UTF_8) else ""
+            } catch (_: Exception) {
+                ""
+            }
+        }
+
+        @JavascriptInterface
+        fun saveWebStorage(content: String) {
+            // Keep a private recovery copy. Never replace a non-empty backup with empty data.
+            try {
+                if (content.isBlank() || content == "{}") return
+                val backup = File(filesDir, "fishtrack-webstorage-backup.json")
+                val temporary = File(filesDir, "fishtrack-webstorage-backup.tmp")
+                FileOutputStream(temporary).use { stream ->
+                    stream.write(content.toByteArray(Charsets.UTF_8))
+                    stream.fd.sync()
+                }
+                if (backup.exists()) backup.delete()
+                if (!temporary.renameTo(backup)) {
+                    temporary.copyTo(backup, overwrite = true)
+                    temporary.delete()
+                }
+            } catch (_: Exception) {
+                // The normal WebView storage remains the primary store.
+            }
+        }
+
         @JavascriptInterface
         fun shareText(title: String, message: String) {
             runOnUiThread {
@@ -423,6 +480,25 @@ class MainActivity : Activity() {
             if (granted) obtainNativeGpsLocation()
             else web.evaluateJavascript("window.onFishTrackGpsError && window.onFishTrackGpsError('Permiso de ubicación denegado. Actívalo en los ajustes de FishTrack.')", null)
         }
+    }
+
+    override fun onPause() {
+        if (::web.isInitialized) {
+            // Snapshot local records before Android backgrounds the activity for an app update.
+            web.evaluateJavascript("""
+                (function() {
+                  try {
+                    var current = {};
+                    for (var i = 0; i < localStorage.length; i++) {
+                      var key = localStorage.key(i);
+                      current[key] = localStorage.getItem(key);
+                    }
+                    if (Object.keys(current).length) FishTrackNative.saveWebStorage(JSON.stringify(current));
+                  } catch (e) {}
+                })();
+            """.trimIndent(), null)
+        }
+        super.onPause()
     }
 
     override fun onBackPressed() {
