@@ -1,4 +1,4 @@
-
+ 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -9,6 +9,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
+        // Identificador permanente: NO cambiarlo en futuras versiones.
         applicationId = "org.fishtrack.app"
         minSdk = 24
         targetSdk = 35
