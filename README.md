@@ -38,11 +38,12 @@ FishTrack no requiere crear una cuenta ni registrarse. Tus datos se guardan loca
 - Instala las nuevas versiones **encima de la versión existente**. No desinstales FishTrack ni borres sus datos: las capturas, fotos y ajustes se guardan en el almacenamiento privado de la aplicación.
 - Se mantiene el identificador Android `org.fishtrack.app` para que Android reconozca la actualización como la misma aplicación.
 - Las APK de actualización deben estar firmadas siempre con la misma clave privada. GitHub Actions ahora exige la clave permanente configurada en los secretos del repositorio y detiene la compilación si falta; así evita ofrecer una APK firmada temporalmente que Android no pueda instalar encima de la anterior.
-- Antes de actualizar, crea además una copia desde el apartado de copias de seguridad de FishTrack y guárdala fuera del móvil. No compartas ni pierdas la clave de firma: sin ella no se podrán instalar actualizaciones sobre esa instalación.
+- Antes de actualizar, crea una copia desde el apartado de copias de seguridad y guárdala fuera del móvil. La copia incluye los registros y ajustes almacenados en WebView y, en Android, los PDF de licencias guardados en el almacenamiento privado. La restauración de los PDF está disponible en esta versión 3.3.3 y posteriores.
+- Para cambiar de una instalación firmada con otra clave, exporta primero la copia desde la aplicación antigua, instala la nueva APK firmada con la clave permanente e importa la copia. No desinstales la versión antigua hasta comprobar que el archivo JSON se ha guardado correctamente. Si no conservas la clave original, Android no permitirá instalar la APK nueva encima de la antigua.
 
-## Versión 3.3.2
+## Versión 3.3.3
 
-Esta versión continúa mejorando la gestión de jornadas, las estadísticas y el manejo de fotografías. Las novedades y correcciones se incorporan al código fuente del repositorio; para utilizarlas en Android es necesario instalar el APK generado con la versión más reciente.
+Esta versión amplía la copia de seguridad para incluir todas las claves de almacenamiento local y los PDF de licencias guardados en Android, además de los registros de capturas, material, amistades, puntos, jornadas, planificaciones, listas y retos. La restauración recupera los registros y vuelve a cargar la aplicación para que los datos importados aparezcan correctamente.
 
 > **Nota:** FishTrack no incorpora todavía un modelo de clasificación automática de peces. Consulta `docs/AI-ROADMAP.md` antes de añadir modelos o pesos de terceros: comprueba su licencia, taxonomía, compatibilidad con Android y evaluación con especies de España.
 
