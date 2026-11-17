@@ -23,17 +23,21 @@ jobs:
           test -d app/src/main
           test -f app/src/main/assets/index.html
           test -f app/src/main/AndroidManifest.xml
-      - name: Prepare persistent signing key for debug APK
+      - name: Require persistent signing key for update APKs
         if: startsWith(github.ref, 'refs/heads/')
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/fishtrack-release.jks"
-            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/fishtrack-release.jks" >> "$GITHUB_ENV"
-          else
-            echo "::warning::No persistent signing key configured; this APK will use the temporary GitHub debug key."
-          fi
+          test -n "$KEYSTORE_B64" || (echo "::error::Falta el secreto ANDROID_KEYSTORE_BASE64. No se generará una APK con firma temporal incompatible." && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo "::error::Falta ANDROID_KEYSTORE_PASSWORD." && exit 1)
+          test -n "$KEY_ALIAS" || (echo "::error::Falta ANDROID_KEY_ALIAS." && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "::error::Falta ANDROID_KEY_PASSWORD." && exit 1)
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/fishtrack-release.jks"
+          test -s "$RUNNER_TEMP/fishtrack-release.jks"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/fishtrack-release.jks" >> "$GITHUB_ENV"
       - name: Build debug APK
         if: startsWith(github.ref, 'refs/heads/')
         env:
@@ -45,7 +49,7 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/')
         uses: actions/upload-artifact@v4
         with:
-          name: FishTrack-debug-apk
+          name: FishTrack-3.3.2-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Check release signing secrets
