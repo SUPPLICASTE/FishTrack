@@ -24,11 +24,14 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify project
+      - name: Verify project and permanent application ID
         run: |
           test -d app/src/main
           test -f app/src/main/assets/index.html
           test -f app/src/main/AndroidManifest.xml
+          grep -Fqx '        applicationId = "org.fishtrack.app"' app/build.gradle.kts
+          grep -Fq 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
+          echo "FishTrack applicationId is fixed: org.fishtrack.app"
 
       - name: Prepare permanent signing key
         env:
@@ -50,8 +53,7 @@ jobs:
           echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
           echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
 
-      # Give every generated APK a higher versionCode so Android recognizes
-      # it as a newer build. The workflow run number is monotonically increasing.
+      # Increase only versionCode; never modify applicationId.
       - name: Set build version
         if: startsWith(github.ref, 'refs/heads/')
         run: |
