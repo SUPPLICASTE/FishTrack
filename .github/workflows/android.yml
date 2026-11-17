@@ -12,6 +12,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAS_SIGNING_KEY: env.HAS_SIGNING_KEY == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -53,7 +55,7 @@ jobs:
 
       # A release APK is produced only when the owner has configured the permanent key.
       - name: Restore permanent release key
-        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
+        if: env.HAS_SIGNING_KEY == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -65,7 +67,7 @@ jobs:
           keytool -list -keystore app/fishtrack.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
 
       - name: Build signed release APK
-        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
+        if: env.HAS_SIGNING_KEY == 'true'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -73,7 +75,7 @@ jobs:
         run: gradle :app:assembleRelease
 
       - name: Verify release APK signature
-        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
+        if: env.HAS_SIGNING_KEY == 'true'
         run: |
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
@@ -82,7 +84,7 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
 
       - name: Upload signed release APK
-        if: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
+        if: env.HAS_SIGNING_KEY == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: FishTrack-release-${{ github.run_number }}
@@ -91,6 +93,6 @@ jobs:
           retention-days: 30
 
       - name: Explain release signing is not configured
-        if: ${{ secrets.KEYSTORE_BASE64 == '' || secrets.KEYSTORE_PASSWORD == '' || secrets.KEY_ALIAS == '' || secrets.KEY_PASSWORD == '' }}
+        if: env.HAS_SIGNING_KEY != 'true'
         run: |
           echo "::warning::Debug APK built successfully. A permanent signed release APK is not produced until the four signing secrets are configured."
